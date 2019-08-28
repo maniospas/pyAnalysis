@@ -1,21 +1,22 @@
 import numpy as np
 import math
-from predictor import predictor
+from predictor import Predictor
 import logger
     
+EPOCH_LIM = 1
+CONVERGENCE_STOP_PERC = 0.05
 
-def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", predictor=predictor(False)):
-    
+def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", predictor=Predictor(False)): 
     dim = len(x_train[0])
     import tensorflow as tf
     # TENSORFLOW MODEL
-    x = tf.placeholder(tf.float32, shape=(None, dim))
-    W1 = tf.Variable(tf.random_normal([dim, EMBEDDING_DIM]))
-    b1 = tf.Variable(tf.random_normal([EMBEDDING_DIM]))
+    x = tf.placeholder(tf.float64, shape=(None, dim))
+    W1 = tf.cast(tf.Variable(tf.random_normal([dim, EMBEDDING_DIM])), tf.float64)
+    b1 = tf.cast(tf.Variable(tf.random_normal([EMBEDDING_DIM])), tf.float64)
     hidden_representation = tf.add(tf.matmul(x,W1), b1)
-    y = tf.placeholder(tf.float32, shape=(None, dim))
-    W2 = tf.Variable(tf.random_normal([EMBEDDING_DIM, dim]))
-    b2 = tf.Variable(tf.random_normal([dim]))
+    y = tf.placeholder(tf.float64, shape=(None, dim))
+    W2 = tf.cast(tf.Variable(tf.random_normal([EMBEDDING_DIM, dim])), tf.float64)
+    b2 = tf.cast(tf.Variable(tf.random_normal([dim])), tf.float64)
     prediction = tf.nn.softmax(tf.add( tf.matmul(hidden_representation, W2), b2))
     
     # TRAIN
@@ -24,33 +25,44 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
     session.run(init)
     if loss == "Square":
         loss_function = tf.reduce_mean(tf.square(y - prediction))
+    elif loss == "Absolute":
+        loss_function = tf.reduce_mean(tf.abs(y - prediction))
+    elif loss == "Pseudo-Huber":
+        delta = tf.constant(0.24)
+        loss_function = tf.reduce_mean(tf.multiply(tf.square(delta),tf.sqrt(1. + tf.square((y - prediction) / delta)) - 1. ))
     elif loss=="Entropy":
-        loss_function = tf.reduce_mean(-tf.reduce_sum(y * tf.log(prediction), reduction_indices=[1]))
+        loss_function = tf.reduce_mean(-tf.reduce_mean(y * tf.log(prediction), reduction_indices=[1]))
+    elif loss=="Entropy2":
+        loss_function = tf.nn.softmax_cross_entropy_with_logits_v2(labels=y, logits=prediction)
     else:
         raise Exception("Invalid loss function")
     train_step = tf.train.GradientDescentOptimizer(0.1).minimize(loss_function)
-    
-    if predictor.predictor_on and epochs < 100:        
-            logger.log("Number of epochs too low to run a prediction model. Not worth it.")
-            predictor.predictor_on = False
-    predictor.clear_losses()
-            
-    for iteration in range(epochs):
+
+    predictor.clear_losses()         
+    prev_loss, iteration = 1, 0
+    while iteration <= epochs:
         session.run(train_step, feed_dict={x: x_train, y: y_train})
         loss = session.run(loss_function, feed_dict={x: x_train, y: y_train})
+        if math.isnan(loss):
+            loss = prev_loss
+            break
+        #logger.log('Iter.', iteration,  'loss: ', loss)
         if iteration % 500==0:
             logger.log('Iter.', iteration,  'loss: ', loss)
-        if abs(loss)<0.0015 or math.isnan(loss):
-            break
-        if (iteration % 10 == 0) and (iteration <= epochs/10):
-            predictor.register_loss(loss)
-        if iteration == int(epochs/10) + 10:
+        if iteration % 10 == 0:
+            if (iteration <= EPOCH_LIM):
+                predictor.register_loss(loss)
+            if (abs(loss-prev_loss)/prev_loss<CONVERGENCE_STOP_PERC/100) and (iteration>(EPOCH_LIM+10)):
+                break
+            prev_loss = loss
+        if iteration == EPOCH_LIM + 10:
             int_pred = predictor.predict_intermediate()
             predict_final_bool = predictor.attempt_final_prediction_bool(int_pred, loss)
-            final_pred = predictor.predict_final(predict_final_bool, epochs)
+            final_pred = predictor.predict_final(predict_final_bool)
             training_completed_bool = predictor.complete_training_bool(final_pred, iteration)
             predictor.add_train_data(training_completed_bool, "intermediate", loss)
             if training_completed_bool.aborted: break
+        iteration = iteration+1
         
     vectors = session.run(W1 + b1)
     logger.log("Training ended in ", iteration, "iterations. Loss is ", loss)    
@@ -109,19 +121,3 @@ def cluster(X, id2words, show_only):
     #logger.log("Silhouette Coefficient: %0.3f"  % metrics.silhouette_score(X, labels))
     
     return metrics.silhouette_score(X, labels)
-    
-#    return metrics.silhouette_score(X, labels)
-    
-    #X = preprocessing.Normalizer().fit_transform(X, 'l2')
-    #colors = ['red', 'blue', 'green', 'cyan', 'yellow', 'magenta', 'orange', 'lime']
-    #import matplotlib.pyplot as plt
-    #for i in range(len(id2words)):
-    #    if not show_only is None and not id2words[i] in show_only:
-    #        continue
-    #    markeredgecolor = colors[labels[i]] if labels[i]!=-1 else 'black'
-    #    plt.plot(X[i][0]*0.5+0.5,X[i][1]*0.5+0.5, 'o', markeredgecolor=markeredgecolor, markerfacecolor=markeredgecolor)
-    #    plt.annotate(id2words[i], (X[i][0]*0.5+0.5,X[i][1]*0.5+0.5))
-    #plt.show()
-    
-    #import visualize.visualizer
-    #visualize.visualizer.visualize_clusters([[id2words[i] for i in range(len(id2words)) if (show_only is None or id2words[i] in show_only) and labels[i]==cluster] for cluster in range(n_clusters_)])

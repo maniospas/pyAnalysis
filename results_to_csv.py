@@ -1,11 +1,11 @@
 import csv
 import os
 import logger
+import plots
 
 
 
-def export_results_to_csv(metric_to_plot, results, configs, predictor, direct_on=False, rectangles=[]):
-    
+def export_results_to_csv(metric_to_plot, results, configs, predictor, direct_on=False, rectangles=[]):    
     if metric_to_plot == "sihlouette":
         index = 0
     elif metric_to_plot == "auc":
@@ -21,29 +21,18 @@ def export_results_to_csv(metric_to_plot, results, configs, predictor, direct_on
     
     if predictor.predictor_on:
         
-        training_added_plot, trainings_cancelled_sum = predictor.compute_end_stats()
-        
-        training_added = [((i == 0) or (i == 2)) for i in predictor.stats]
-        
-        y_plot_int_errors = [abs(i) for i in predictor.intermediate_errors]
-        y_plot_int_errors_perc = [abs(i) for i in predictor.intermediate_errors_percentage]
-        y_plot_f_errors = [abs(i) for i in predictor.final_errors]
-        y_plot_f_errors_perc = [abs(i) for i in predictor.final_errors_percentage]
-        y_plot_cancel_perc = [(i/j)*100 for i,j in zip(trainings_cancelled_sum, [i+1 for i in range(len(trainings_cancelled_sum))])]
+        training_added, training_added_plot, trainings_cancelled, acc_continuations, acc_cancellations = plots.compute_end_stats(predictor, False)
+                
+        y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors, y_plot_f_errors_perc  = [abs(i) for i in predictor.int_errors],  [abs(i) for i in predictor.int_errors_perc], [abs(i) for i in predictor.f_errors], [abs(i) for i in predictor.f_errors_perc]
 
-    create_csv(predictor.predictor_on, direct_on, x_plot, x_ticks_configs, y_plot_metric, y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors,
-               y_plot_f_errors_perc, y_plot_cancel_perc, training_added, rectangles) 
-
-   # create_csv_dict(predictor.predictor_on, x_plot, x_ticks_configs, y_plot_metric, y_plot_int_errors, y_plot_int_errors_perc,
-                                     #y_plot_f_errors, y_plot_f_errors_perc, y_plot_cancel_perc, training_added)
-
-    #create_csv_2(predictor.predictor_on, x_plot, x_ticks_configs, y_plot_metric, y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors, y_plot_f_errors_perc, y_plot_cancel_perc, training_added) 
-
-    #create_csv_dict_2(predictor.predictor_on, x_plot, x_ticks_configs, y_plot_metric, y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors, y_plot_f_errors_perc, y_plot_cancel_perc, training_added)             
+        create_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_metric, y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors,
+               y_plot_f_errors_perc, training_added, trainings_cancelled, acc_continuations, acc_cancellations, rectangles) 
+    else:
+        create_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_metric)
 
     
-def create_csv(predictor_on, direct_on, x_plot, x_ticks_configs, y_plot_metric, y_plot_int_errors=[], y_plot_int_errors_perc=[],
-                                     y_plot_f_errors=[], y_plot_f_errors_perc=[], y_plot_cancel_perc=[], training_added=[], rectangles=[]):
+def create_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_metric, y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors,
+               y_plot_f_errors_perc, training_added, trainings_cancelled, acc_continuations, acc_cancellations, rectangles):
     
     try:
         os.remove("plot_data.csv")
@@ -52,7 +41,7 @@ def create_csv(predictor_on, direct_on, x_plot, x_ticks_configs, y_plot_metric, 
     
     csv_data = []    
 
-    csv_data.append(["x plot", "x ticks", "y plot loss"])
+    csv_data.append(["exp. number", "configurations", "loss"])
     for a,b,c in zip(x_plot, x_ticks_configs, y_plot_metric):
         csv_data.append([a, b, c])
         
@@ -61,24 +50,44 @@ def create_csv(predictor_on, direct_on, x_plot, x_ticks_configs, y_plot_metric, 
         writer.writerows(csv_data)
     csvFile.close()
 
-    if predictor_on:
+    if predictor.predictor_on:
         with open('plot_data_pred.csv' ,'w', newline='') as outFile:
             fileWriter = csv.writer(outFile)
             with open('plot_data.csv','r') as inFile:
                 fileReader = csv.reader(inFile)
                 for i, row in enumerate(fileReader):
                     if i == 0:
-                        row.extend(["y plot intermediate errors", "y plot intermediate errors percentage", "y plot final errors",
-                         "y plot final errors percentage", "percentage of cancellations", "training added"])
+                        row.extend(["intermediate errors", "intermediate errors percentage", "final errors",
+                         "final errors percentage", "training addded", "training cancelled", "accurate continuations (refers only to conscious continuations)"])
                         fileWriter.writerow(row)
                     else:
                         row.extend([y_plot_int_errors[i-1], y_plot_int_errors_perc[i-1],
-                                     y_plot_f_errors[i-1], y_plot_f_errors_perc[i-1], y_plot_cancel_perc[i-1], training_added[i-1]])
+                                     y_plot_f_errors[i-1], y_plot_f_errors_perc[i-1], training_added[i-1], trainings_cancelled[i-1], acc_continuations[i-1]])
                         fileWriter.writerow(row)
         outFile.close()
         inFile.close()
         os.remove("plot_data.csv")
         os.rename("plot_data_pred.csv", "plot_data.csv")
+        
+        a = acc_cancellations
+        
+        if predictor.test_predictor_acc:
+            with open('plot_data_test_pred_acc.csv' ,'w', newline='') as outFile:
+                fileWriter = csv.writer(outFile)
+                with open('plot_data.csv','r') as inFile:
+                    fileReader = csv.reader(inFile)
+                    for i, row in enumerate(fileReader):
+                        if i == 0:
+                            row.extend(["accurate cancellations"])
+                            fileWriter.writerow(row)
+                        else:
+                            row.extend([acc_cancellations[i-1]])
+                            fileWriter.writerow(row)
+            outFile.close()
+            inFile.close()
+            os.remove("plot_data.csv")
+            os.rename("plot_data_test_pred_acc.csv", "plot_data.csv")                
+        
         
     if direct_on:
         with open('plot_data_dir.csv' ,'w', newline='') as outFile:
@@ -87,105 +96,48 @@ def create_csv(predictor_on, direct_on, x_plot, x_ticks_configs, y_plot_metric, 
                 fileReader = csv.reader(inFile)
                 for i, row in enumerate(fileReader):
                     if i == 0:
-                        row.extend(["rectangle volume"])
+                        row.extend(["rectangle volumes", "rectangle diameters"])
                         fileWriter.writerow(row)
                     else:
-                        row.extend([rectangles[i-1].size])
+                        row.extend([rectangles[i-1].size_list, rectangles[i-1].diag_list])
                         fileWriter.writerow(row)
         outFile.close()
         inFile.close()
         os.remove("plot_data.csv")
         os.rename("plot_data_dir.csv", "plot_data.csv")
-            
-    
-
-    
-    
-"""def create_csv_dict(predictor_on, x_plot, x_ticks_configs, y_plot_metric, y_plot_int_errors, y_plot_int_errors_perc,
-                                     y_plot_f_errors, y_plot_f_errors_perc, y_plot_cancel_perc, training_added):
-    
-    try:
-        os.remove("plot_data_dict.csv")
-    except:
-        logger.log("no file 'plot_data_dict' to delete")
-    
-    csv_data_dict= []
-    if predictor_on:
-        fieldnames = ["x plot", "x ticks", "y plot loss", "y plot intermediate errors", "y plot intermediate errors percentage", "y plot final errors",
-                         "y plot final errors percentage", "percentage of cancellations", "training added"]        
-        for a, b, c, d, e, f, g, h, i in zip(x_plot, x_ticks_configs, y_plot_metric, y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors, y_plot_f_errors_perc, y_plot_cancel_perc, training_added):
-            csv_data_dict.append({"x plot": a, "x ticks": b, "y plot loss": c, "y plot intermediate errors": d, "y plot intermediate errors percentage": e,
-                                  "y plot final errors": f, "y plot final errors percentage": g, "percentage of cancellations": h, "training added": i})
-    else:
-        fieldnames = ["x plot", "x ticks", "y plot loss"]
-        for a, b, in zip(x_plot, x_ticks_configs, y_plot_metric):
-            csv_data_dict.append({"x plot": a, "x ticks": b, "y plot loss": c})
-            
-    with open('plot_data_dict.csv', 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-        writer.writeheader()
-        for row in csv_data_dict:
-            writer.writerow(row)
-
-    csvfile.close()"""
-    
-    
-"""def create_csv_2(predictor_on, x_plot, x_ticks_configs, y_plot_metric, y_plot_int_errors, y_plot_int_errors_perc,
-                                     y_plot_f_errors, y_plot_f_errors_perc, y_plot_cancel_perc, training_added):
-    
-    try:
-        os.remove("plot_data_excel.csv")
-    except:
-        logger.log("no file 'plot_data_excel' to delete")
-    
-    csv_data_excel = []    
-    if predictor_on:
-        csv_data_excel.append(["x plot", "x ticks", "y plot loss", "y plot intermediate errors", "y plot intermediate errors percentage", "y plot final errors",
-                         "y plot final errors percentage", "percentage of cancellations", "training added"])
-        for a, b, c, d, e, f, g, h, i in zip(x_plot, x_ticks_configs, y_plot_metric, y_plot_int_errors, y_plot_int_errors_perc,
-                                     y_plot_f_errors, y_plot_f_errors_perc, y_plot_cancel_perc, training_added):
-            csv_data_excel.append([a, b, c, d, e, f, g, h, i])
-    else:
-        csv_data_excel.append("x plot", "x ticks", "y plot loss")
-        for a,b,c in zip(x_plot, x_ticks_configs, y_plot_metric):
-            csv_data_excel.append(a, b, c)
-    
-    with open('plot_data_excel.csv', 'w') as csvFile:
-        writer = csv.writer(csvFile, dialect='excel')
-        writer.writerows(csv_data_excel)
         
-    csvFile.close()"""
-    
-    
-"""def create_csv_dict_2(predictor_on, x_plot, x_ticks_configs, y_plot_metric, y_plot_int_errors, y_plot_int_errors_perc,
-                                     y_plot_f_errors, y_plot_f_errors_perc, y_plot_cancel_perc, training_added):
-    
+        
+def cvalidation_data_to_csv(cvalidation_data):
     try:
-        os.remove("plot_data_dict_excel.csv")
+        os.remove("cval_data.csv")
     except:
-        logger.log("no file 'plot_data_dict_excel' to delete")
+        logger.log("no file 'cval_data' to delete")
     
-    csv_data_dict_excel= []
-    if predictor_on:
-        fieldnames = ["x plot", "x ticks", "y plot loss", "y plot intermediate errors", "y plot intermediate errors percentage", "y plot final errors",
-                         "y plot final errors percentage", "percentage of cancellations", "training added"]        
-        for a, b, c, d, e, f, g, h, i in zip(x_plot, x_ticks_configs, y_plot_metric, y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors, y_plot_f_errors_perc, y_plot_cancel_perc, training_added):
-            csv_data_dict_excel.append({"x plot": a, "x ticks": b, "y plot loss": c, "y plot intermediate errors": d, "y plot intermediate errors percentage": e,
-                                  "y plot final errors": f, "y plot final errors percentage": g, "percentage of cancellations": h, "training added": i})
-    else:
-        fieldnames = ["x plot", "x ticks", "y plot loss"]
-        for a, b, in zip(x_plot, x_ticks_configs, y_plot_metric):
-            csv_data_dict_excel.append({"x plot": a, "x ticks": b, "y plot loss": c})
+    csv_data = []    
+    csv_data.append(["losses", "i_loss", "f_loss"])
+    for a,b,c in zip(cvalidation_data[0], cvalidation_data[1], cvalidation_data[2]):
+        csv_data.append([a, b, c])        
+        
+    with open('cval_data.csv', 'w', newline='') as csvFile:
+        writer = csv.writer(csvFile)
+        writer.writerows(csv_data)
+    csvFile.close()
+    
+
+def access_cvalidation_data():
+    ret_data = []
+    with open('cval_data.csv','r') as rFile:
+        fileReader = csv.reader(rFile, delimiter=',')
+        for (i,row) in enumerate(fileReader):
+            if i != 0:
+                r_row = []
+                for x in row:
+                    r_row.append(eval(x))
+            if i != 0: ret_data.append(r_row)            
+    rFile.close()
+    return ret_data
             
-    with open('plot_data_dict_excel.csv', 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames, dialect="excel")
-
-        writer.writeheader()
-        for row in csv_data_dict_excel:
-            writer.writerow(row)
-
-    csvfile.close()"""
 
 
+            
 

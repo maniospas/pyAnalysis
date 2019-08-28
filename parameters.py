@@ -1,5 +1,5 @@
 import random
-import math_operations as mo
+import math_operations as math_ops
 import numpy as np
 
 
@@ -22,11 +22,12 @@ class parameters:
         if templates_on:        
             for f in filter_types:
                 for d in filter_depths:
-                    self.filters.append(mo.create_filter(f, d))
+                    self.filters.append(math_ops.create_filter(f, d))
             self.filters = remove_duplicates(self.filters)
         if custom_on:
             for filt in custom_filter_pars:    
                 self.filters.append(filt)
+            
             
     def random_values(self, selection, number, depth):
         parameters_list = []
@@ -37,6 +38,7 @@ class parameters:
             for i in range(depth): rand_pars.append(random.random(span[0], span[1]))
             if rand_pars not in parameters_list: parameters_list.append(rand_pars)
         return parameters_list
+    
     
 def remove_duplicates(duplicate_list): 
     final_list = [] 

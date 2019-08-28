@@ -23,7 +23,7 @@ def create_filter(category="uniform", length=5, custom_filter_pars = []):
     return [filtering_algorithm(x) for x in range(length)]
 
 
-def apply_filter(G, created_filter, normalize="symmetric"):
+def apply_filter(G, created_filter, normalize="symmetric", print_bool=True):
     adjacency_matrix = nx.to_numpy_matrix(G)
     if normalize=="none":
         pass
@@ -42,12 +42,16 @@ def apply_filter(G, created_filter, normalize="symmetric"):
         result += power*parameter
         power = np.matmul(power, adjacency_matrix)
     result /= sum(created_filter)
-    logger.log("Filter", created_filter)
-    logger.log("Spectrum", spectrum)
+    if print_bool:
+        logger.log("Filter", created_filter)
+        logger.log("Spectrum", spectrum)
     return {nodei: {nodej: result.item((i,j)) for j, nodej in enumerate(G.nodes())} for i, nodei in enumerate(G.nodes())}
 
 
-def apply_log(x):
-    return 2**((x*10)+1)
+def apply_log(x, nodes_sum):
+    return int(4+2**(x*10))
+
+def transpose(x):
+    return [[(x[j][i]) for j in range(len(x))] for i in range(len(x[0]))] 
 
                                 
