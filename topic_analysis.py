@@ -31,7 +31,7 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
         delta = tf.constant(0.24)
         loss_function = tf.reduce_mean(tf.multiply(tf.square(delta),tf.sqrt(1. + tf.square((y - prediction) / delta)) - 1. ))
     elif loss=="Entropy":
-        loss_function = tf.reduce_mean(-tf.reduce_mean(y * tf.log(prediction), reduction_indices=[1]))
+        loss_function = tf.reduce_mean(-tf.reduce_sum(y * tf.log(prediction), reduction_indices=[1]))
     elif loss=="Entropy2":
         loss_function = tf.nn.softmax_cross_entropy_with_logits_v2(labels=y, logits=prediction)
     else:

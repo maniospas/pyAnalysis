@@ -26,10 +26,10 @@ predictor = pred.Predictor(False, svr_params=['rbf', 1e3, 1], test_predictor_acc
          
 #results_auc, results_sihl, results_loss, configurations, best_auc, best_sihl, best_loss, predictor = main_ops.find_best_settings(G, pars, predictor)
 
-
+"""this is direct"""
 #rectangles, sorted_results, trisection_counter, predictor = main_ops.find_best_settings_direct(G=G, filter_dim=6, epsilon=10**(-4),
 #                                                                                          stop_condition_perc=1, trisection_lim=50, predictor=predictor)
-
+""""""
 
 #pars2 = parameters.parameters(G, False, False, [], [], True, [[1, 0.5, 0.2]], [10], 1, math.inf)
 #for i in range(5):
@@ -39,7 +39,7 @@ predictor = pred.Predictor(False, svr_params=['rbf', 1e3, 1], test_predictor_acc
 #pars = parameters.parameters(G, False, False, [], [], True, [[1, 0.7, 0.3]], [2], 1, math.inf)
 #training.train(G, pars, predictor)
 
-
+"""this runs for 10 different dimensions and plots loss"""
 xt = [[[int(4+2**(x))]] for x in range(10)]
 pars = [parameters.parameters(G, False, False, [], [], True, [[0.5, 0.7, 0.3]], [int(4+2**(x))], 1, math.inf) for x in range(10)]
 results = []

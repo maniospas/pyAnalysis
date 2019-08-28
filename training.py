@@ -34,7 +34,7 @@ def train(G, pars, predictor=None):
             auc_sum, sihl_sum, loss_sum = 0, 0, 0
             for i in range(pars.iterations):                
                 start_in = time.time()
-                vectors, loss, predictor, complete_training_bool = topic.encode(y_train, x_train, dim, pars.epochs, "Entropy2", predictor)
+                vectors, loss, predictor, complete_training_bool = topic.encode(y_train, x_train, dim, pars.epochs, "Entropy", predictor)
                 end_in = time.time()
                 logger.log("Time it took to train:", end_in-start_in, "seconds")              
                 sihlouette, auc, loss = complete_training_bool.return_metrics(loss, vectors, id2node, function_names, G)
