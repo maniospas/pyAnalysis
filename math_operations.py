@@ -1,6 +1,8 @@
 import networkx as nx
 import numpy as np
 import logger
+import sklearn
+import tqdm
             
 
 def create_filter(category="uniform", length=5, custom_filter_pars = []):
@@ -23,29 +25,31 @@ def create_filter(category="uniform", length=5, custom_filter_pars = []):
     return [filtering_algorithm(x) for x in range(length)]
 
 
-def apply_filter(G, created_filter, normalize="symmetric", print_bool=True):
-    adjacency_matrix = nx.to_numpy_matrix(G)
-    if normalize=="none":
-        pass
-    elif normalize=="symmetric":
-        diags = adjacency_matrix.sum(axis=0)
-        diags[np.nonzero(diags)] = np.power(diags[np.nonzero(diags)],-0.5)
-        D = np.diagflat(diags)
-        adjacency_matrix = np.matmul(np.matmul(D.T, adjacency_matrix), D)
-    else:
-        raise Exception("Invalid normalization")
-    power = adjacency_matrix.copy()
+def apply_filter(G, created_filter, normalization="symmetric", print_bool=True):
+    normalization = normalization.lower()
+    M = nx.to_scipy_sparse_matrix(G, dtype=float)
+    if normalization == "auto":
+        normalization = "col" if G.is_directed() else "symmetric"
+    if normalization == "col":
+        M = sklearn.preprocessing.normalize(M, "l1", axis=1, copy=False)
+    elif normalization == "symmetric":
+        M = sklearn.preprocessing.normalize(M, "l2", axis=0, copy=False)
+        M = sklearn.preprocessing.normalize(M, "l2", axis=1, copy=False)
+    elif normalization != "none":
+        raise Exception("Supported normalizations: none, col, symmetric, auto")
+    power = M.copy()
     result = 0
     spectrum = []
-    for parameter in created_filter:
-        spectrum.append(np.sum(abs(power)))
+    for parameter in tqdm.tqdm(created_filter, desc="Applying filter"):
+        spectrum.append(np.sum(np.abs(power)))
         result += power*parameter
-        power = np.matmul(power, adjacency_matrix)
+        power = power * M
     result /= sum(created_filter)
+    result = result.todense()
     if print_bool:
-        logger.log("Filter", created_filter)
         logger.log("Spectrum", spectrum)
-    return {nodei: {nodej: result.item((i,j)) for j, nodej in enumerate(G.nodes())} for i, nodei in enumerate(G.nodes())}
+    return result
+    #return {nodei: {nodej: result[i,j] for j, nodej in enumerate(G.nodes())} for i, nodei in enumerate(G.nodes())}
 
 
 

@@ -64,7 +64,6 @@ def _create_graph(pairs):
     logger.log('Avg. Degree:', sum(G.degree[v] for v in G.nodes())/len(G.nodes()))
     logger.log('Nodes      :', len(G))
     logger.log('Edges      :', G.number_of_edges())
-    print(G.nodes())
     return G
 
 
@@ -107,6 +106,6 @@ def create_predicate_graph(path):
                 for word in _get_function_words(node):
                     pairs.append((node.name, word))
                     frequencies[word] = frequencies.get(word,0) + 1
-    pairs = [(node1, node2) for node1, node2 in pairs if node1!=node2 and (frequencies.get(node2,0)>1 or node2 in function_names)]
+    pairs = [(node1, node2) for node1, node2 in pairs if node1!=node2 and (frequencies.get(node2,0)>1 and node2 in function_names)]
     G = _create_graph(pairs)
     return G

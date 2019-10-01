@@ -36,10 +36,9 @@ def find_best_settings(G, pars, predictor):
 
 def find_best_settings_direct(G, filter_dim, epsilon, trisection_lim, train_iterations, predictor):  
     if filter_dim < 1: raise Exception("The filter dimensions cannot be less than 1!")
-    
-    rectangles = []
+
     starting_filter_parameters = [[0,1] for x in range(int(filter_dim))]
-    rectangles.append(direct.Rectangle(G, starting_filter_parameters, -1, 0, train_iterations, np.nan, predictor))
+    rectangles = [direct.Rectangle(G, starting_filter_parameters, -1, 0, train_iterations, np.nan, predictor)]
     counter, direct_iteration, optimal_results = 0, 1, []
 
     start = time.time()    

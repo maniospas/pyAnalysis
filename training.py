@@ -19,18 +19,12 @@ def train(G, pars, predictor=None):
     
     start_out = time.time()
     for filt in pars.filters:
-        for dim in pars.emb_dims:  
-            adjacency = math_ops.apply_filter(G, filt)
+        for dim in pars.emb_dims:
+            x_train = np.ones(shape=(len(G), len(G)))
+            y_train = math_ops.apply_filter(G, filt)
             node2id = {node: i for i,node in enumerate(G.nodes())}
             id2node = {node2id[node]: node for node in G.nodes()}
             function_names = [node for i, node in enumerate(G.nodes())]
-            x_train = []
-            y_train = []
-            for node in G.nodes():
-                for successor in G.nodes():
-                    if node!=successor:
-                        y_train.append(topic.one_hot(node2id[node], len(G.nodes())))
-                        x_train.append(topic.one_hot(node2id[successor], len(G.nodes()))*adjacency[node][successor])
             for i in range(pars.iterations): 
                 logger.log("\n\nStarting iteration number", i+1, "out of", pars.iterations)
                 start_in = time.time()

@@ -7,7 +7,7 @@ EPOCH_LIM = 1000
 CONVERGENCE_STOP_PERC = 0.07
 
 def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", predictor=Predictor(False)): 
-    dim = len(x_train[0])
+    dim = x_train.shape[0]
     import tensorflow as tf
     # TENSORFLOW MODEL
     x = tf.placeholder(tf.float64, shape=(None, dim))
@@ -31,7 +31,7 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
         delta = tf.constant(0.24)
         loss_function = tf.reduce_mean(tf.multiply(tf.square(delta),tf.sqrt(1. + tf.square((y - prediction) / delta)) - 1. ))
     elif loss=="Entropy":
-        loss_function = tf.reduce_mean(-tf.reduce_sum(y * tf.log(prediction), reduction_indices=[1]))
+        loss_function = tf.reduce_mean(-tf.reduce_sum(y * tf.log(prediction+10E-6), reduction_indices=[1]))
     elif loss=="Entropy2":
         loss_function = tf.nn.softmax_cross_entropy_with_logits_v2(labels=y, logits=prediction)
     else:
@@ -44,9 +44,8 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
         session.run(train_step, feed_dict={x: x_train, y: y_train})
         loss = session.run(loss_function, feed_dict={x: x_train, y: y_train})
         if math.isnan(loss):
-            loss = prev_loss
-            break
-        if iteration % 500==0:
+            raise Exception("Loss was None")
+        #if iteration % 500==0:
             logger.log('Iter.', iteration,  'loss: ', loss)
         if (iteration % 100  == 0) and (iteration <= EPOCH_LIM):
             predictor.register_loss(loss)
