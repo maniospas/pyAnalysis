@@ -61,7 +61,10 @@ def _create_graph(pairs):
         if not G.has_node(node2):
             G.add_node(node2)
         G.add_edge(node1, node2)
-    logger.log('Avg. Degree: ',sum(G.degree[v] for v in G.nodes())/len(G.nodes()))
+    logger.log('Avg. Degree:', sum(G.degree[v] for v in G.nodes())/len(G.nodes()))
+    logger.log('Nodes      :', len(G))
+    logger.log('Edges      :', G.number_of_edges())
+    print(G.nodes())
     return G
 
 
@@ -73,7 +76,7 @@ def create_predicate_graph(path):
     def _get_function_words(node):
         words = list()
         for line in astor.to_source(node).split('\n'):
-            line_text = re.sub(r"\(|\)|\:|\.|\_|\[|\]|\"|\'|\||\\|\{|\}|\=|\+|\-|\*|\/|\%|\.|\,|\<|\>", " ", line)
+            line_text = re.sub(r"\(|\)|\:|\.|\[|\]|\"|\'|\||\\|\{|\}|\=|\+|\-|\*|\/|\%|\.|\,|\<|\>", " ", line)
             words.extend([word for word in line_text.split(' ') if len(word)>1])
             #words.extend(word.lower() for word in re.findall("[A-Z]*[a-z]+", line))
         return words
@@ -84,18 +87,19 @@ def create_predicate_graph(path):
     for path in _path2files(path):
         a = astor.code_to_ast.parse_file(path)
         for node in ast.iter_child_nodes(a):
-            if type(node).__name__=='ClassDef':
+            if type(node).__name__=='ClassDef' and hasattr(node, 'name'):
                 for method in ast.iter_child_nodes(node):
-                    pairs.append((node.name, method.name))
-                    function_names.append(node.name)
-                    method_name = method.name
-                    frequencies[method_name] = frequencies.get(method_name,0) + 1
-                    if type(method).__name__=='FunctionDef':
-                        function_names.append(method_name)
-                        for word in _get_function_words(method):
-                            pairs.append((method_name, word))
-                            frequencies[word] = frequencies.get(word,0) + 1
-            if type(node).__name__=='FunctionDef':
+                    if hasattr(method, 'name'):
+                        method_name = method.name
+                        frequencies[method_name] = frequencies.get(method_name,0) + 1
+                        if type(method).__name__=='FunctionDef':
+                            function_names.append(node.name)
+                            pairs.append((node.name, method.name))
+                            function_names.append(method_name)
+                            for word in _get_function_words(method):
+                                pairs.append((method_name, word))
+                                frequencies[word] = frequencies.get(word,0) + 1
+            if type(node).__name__=='FunctionDef' and hasattr(node, 'name'):
                 pairs.append((path.split('\\')[-2].split('.')[-1], node.name))
                 function_names.append(path.split('\\')[-2].split('.')[-1])
                 function_names.append(node.name)
@@ -103,6 +107,6 @@ def create_predicate_graph(path):
                 for word in _get_function_words(node):
                     pairs.append((node.name, word))
                     frequencies[word] = frequencies.get(word,0) + 1
-    pairs = [(node1, node2) for node1, node2 in pairs if node1!=node2 and (frequencies[node2]>1 or node2 in function_names) ]
+    pairs = [(node1, node2) for node1, node2 in pairs if node1!=node2 and (frequencies.get(node2,0)>1 or node2 in function_names)]
     G = _create_graph(pairs)
     return G

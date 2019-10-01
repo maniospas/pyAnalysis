@@ -12,7 +12,7 @@ import math
 
 
 
-G, module = graph_generation.create_pyan_graph("../networkx", content = "predicates")
+G = graph_generation.create_predicate_graph("../networkx")
 #vis.visualize(G)
 
 pars = parameters.parameters(G)
