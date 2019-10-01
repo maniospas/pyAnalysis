@@ -2,11 +2,11 @@ import numpy as np
 import math
 from predictor import Predictor
 import logger
-    
-EPOCH_LIM = 1000
+import tqdm
+
 CONVERGENCE_STOP_PERC = 0.07
 
-def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", predictor=Predictor(False)): 
+def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", predictor=Predictor(False)):
     dim = x_train.shape[0]
     import tensorflow as tf
     # TENSORFLOW MODEL
@@ -17,7 +17,7 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
     y = tf.placeholder(tf.float64, shape=(None, dim))
     W2 = tf.cast(tf.Variable(tf.random_normal([EMBEDDING_DIM, dim])), tf.float64)
     b2 = tf.cast(tf.Variable(tf.random_normal([dim])), tf.float64)
-    prediction = tf.nn.softmax(tf.add( tf.matmul(hidden_representation, W2), b2))
+    prediction = tf.nn.sigmoid(tf.add( tf.matmul(hidden_representation, W2), b2))
     
     # TRAIN
     session = tf.Session()
@@ -31,38 +31,37 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
         delta = tf.constant(0.24)
         loss_function = tf.reduce_mean(tf.multiply(tf.square(delta),tf.sqrt(1. + tf.square((y - prediction) / delta)) - 1. ))
     elif loss=="Entropy":
-        loss_function = tf.reduce_mean(-tf.reduce_sum(y * tf.log(prediction+10E-6), reduction_indices=[1]))
+        loss_function = tf.reduce_mean(-tf.reduce_sum(y * tf.log(prediction+1.E-6), reduction_indices=[1]))
     elif loss=="Entropy2":
         loss_function = tf.nn.softmax_cross_entropy_with_logits_v2(labels=y, logits=prediction)
     else:
         raise Exception("Invalid loss function")
-    train_step = tf.train.GradientDescentOptimizer(0.1).minimize(loss_function)
+    train_step = tf.train.GradientDescentOptimizer(learning_rate=0.1).minimize(loss_function)
 
     predictor.clear_losses()         
-    prev_loss, iteration = 1, 0
-    while iteration <= epochs:
+    prev_loss = 1
+    for iteration in tqdm.tqdm(range(epochs), desc="Training embeddings"):
         session.run(train_step, feed_dict={x: x_train, y: y_train})
         loss = session.run(loss_function, feed_dict={x: x_train, y: y_train})
         if math.isnan(loss):
             raise Exception("Loss was None")
-        #if iteration % 500==0:
-            logger.log('Iter.', iteration,  'loss: ', loss)
-        if (iteration % 100  == 0) and (iteration <= EPOCH_LIM):
+        if iteration < epochs//10:
             predictor.register_loss(loss)
-        if (iteration % 10 == 0):
-            if (abs(loss-prev_loss)*100/prev_loss<CONVERGENCE_STOP_PERC) and (iteration>(EPOCH_LIM+101)): break
+        else:
+            if abs(loss-prev_loss)*100/prev_loss<CONVERGENCE_STOP_PERC:
+                break
             prev_loss = loss
-        if iteration == EPOCH_LIM + 100:
+        if iteration == epochs//10:
             int_pred = predictor.predict_intermediate()
             predict_final_bool = predictor.attempt_final_prediction_bool(int_pred, loss)
             final_pred = predictor.predict_final(predict_final_bool)
             training_completed_bool = predictor.complete_training_bool(final_pred, iteration)
             predictor.add_train_data(training_completed_bool, "intermediate", loss)
-            if training_completed_bool.aborted: break
-        iteration = iteration+1
+            if training_completed_bool.aborted:
+                break
         
     vectors = session.run(W1 + b1)
-    logger.log("Training ended in ", iteration, "iterations. Loss is ", loss)    
+    logger.log("Training ended in ", iteration, "iterations, loss is ", loss, "previous loss is", prev_loss)
     
     predictor.collect_results(final_pred, loss, training_completed_bool)
     predictor.add_train_data(training_completed_bool, "final", loss)    

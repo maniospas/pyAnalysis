@@ -20,7 +20,7 @@ def train(G, pars, predictor=None):
     start_out = time.time()
     for filt in pars.filters:
         for dim in pars.emb_dims:
-            x_train = np.ones(shape=(len(G), len(G)))
+            x_train = np.identity(len(G))
             y_train = math_ops.apply_filter(G, filt)
             node2id = {node: i for i,node in enumerate(G.nodes())}
             id2node = {node2id[node]: node for node in G.nodes()}
