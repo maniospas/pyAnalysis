@@ -3,8 +3,8 @@ import math
 from predictor import Predictor
 import logger
     
-EPOCH_LIM = 1
-CONVERGENCE_STOP_PERC = 0.05
+EPOCH_LIM = 1000
+CONVERGENCE_STOP_PERC = 0.07
 
 def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", predictor=Predictor(False)): 
     dim = len(x_train[0])
@@ -46,16 +46,14 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
         if math.isnan(loss):
             loss = prev_loss
             break
-        #logger.log('Iter.', iteration,  'loss: ', loss)
         if iteration % 500==0:
             logger.log('Iter.', iteration,  'loss: ', loss)
-        if iteration % 10 == 0:
-            if (iteration <= EPOCH_LIM):
-                predictor.register_loss(loss)
-            if (abs(loss-prev_loss)/prev_loss<CONVERGENCE_STOP_PERC/100) and (iteration>(EPOCH_LIM+10)):
-                break
+        if (iteration % 100  == 0) and (iteration <= EPOCH_LIM):
+            predictor.register_loss(loss)
+        if (iteration % 10 == 0):
+            if (abs(loss-prev_loss)*100/prev_loss<CONVERGENCE_STOP_PERC) and (iteration>(EPOCH_LIM+101)): break
             prev_loss = loss
-        if iteration == EPOCH_LIM + 10:
+        if iteration == EPOCH_LIM + 100:
             int_pred = predictor.predict_intermediate()
             predict_final_bool = predictor.attempt_final_prediction_bool(int_pred, loss)
             final_pred = predictor.predict_final(predict_final_bool)
@@ -70,8 +68,9 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
     predictor.collect_results(final_pred, loss, training_completed_bool)
     predictor.add_train_data(training_completed_bool, "final", loss)    
     
-    return vectors, loss, predictor, training_completed_bool
-   
+    if not training_completed_bool.aborted: return vectors, loss, predictor, training_completed_bool
+    return vectors,math.exp(final_pred), predictor, training_completed_bool
+
     
 def one_hot(index, size):
     temp = np.zeros(size)

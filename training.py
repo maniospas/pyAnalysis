@@ -12,7 +12,7 @@ def train(G, pars, predictor=None):
     logger.log("Starting ", total_experiments, "experiments.\n") if total_experiments!=1 else logger.log("Starting ", total_experiments, "experiment.\n")
     logger.log("Embedding dimension is", pars.emb_dims[0])
     
-    results, configurations = np.zeros((3, len(pars.filters)*len(pars.emb_dims))), []
+    results, configurations = np.zeros((3, len(pars.filters)*len(pars.emb_dims)*pars.iterations)), []
     if pars.iterations <= 0:
         raise Exception("Iterations must be a positive number")
     total_counter = 0
@@ -31,19 +31,15 @@ def train(G, pars, predictor=None):
                     if node!=successor:
                         y_train.append(topic.one_hot(node2id[node], len(G.nodes())))
                         x_train.append(topic.one_hot(node2id[successor], len(G.nodes()))*adjacency[node][successor])
-            auc_sum, sihl_sum, loss_sum = 0, 0, 0
-            for i in range(pars.iterations):                
+            for i in range(pars.iterations): 
+                logger.log("\n\nStarting iteration number", i+1, "out of", pars.iterations)
                 start_in = time.time()
                 vectors, loss, predictor, complete_training_bool = topic.encode(y_train, x_train, dim, pars.epochs, "Entropy", predictor)
                 end_in = time.time()
                 logger.log("Time it took to train:", end_in-start_in, "seconds")              
-                sihlouette, auc, loss = complete_training_bool.return_metrics(loss, vectors, id2node, function_names, G)
-                if sihlouette == math.inf: break # if the prediction wasnt good and training aborted. No need to run remaining iterations
-                sihl_sum, auc_sum, loss_sum = sihl_sum + sihlouette, auc_sum + auc, loss_sum + loss                                   
-            results[0][total_counter], results[1][total_counter], results[2][total_counter] =  (auc_sum/pars.iterations), (sihl_sum/pars.iterations), (loss_sum/pars.iterations)
-            configurations.append((filt, dim))
-            logger.log("This was the experiment no.", total_counter+1, "out of", len(pars.filters)*len(pars.emb_dims), ".\n\n")
-            total_counter += 1            
+                results[0][total_counter], results[1][total_counter], results[2][total_counter] =  complete_training_bool.return_metrics(loss, vectors, id2node, function_names, G)
+                configurations.append((filt, dim))
+                total_counter += 1            
     end_out = time.time()  
 
     logger.log("The time it took to complete all experiments was", end_out - start_out, "secs, or", (end_out - start_out)/3600, "hours.\n\n")  

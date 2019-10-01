@@ -7,7 +7,7 @@ import sklearn.metrics
 
 
 ST_DEV_MUL = 1
-INT_PRED_LIM = 10
+INT_PRED_LIM = 5
 COMPLETE_FIRST_TRAININGS = 10
 
 class Predictor:
@@ -78,7 +78,7 @@ class Predictor:
                 if len(self.loss_list) > COMPLETE_FIRST_TRAININGS: logger.log("Prediction of final loss in iteration number " + str(iteration) + " is good. " + "Training continues...")
                 return training_continued()
             else:
-                logger.log("Prediction of final loss in iteration number", iteration, "is too high. Training aborted...")
+                logger.log("Prediction of final loss in iteration number", iteration, "is too high:", math.exp(pred_final),". Training aborted...")
                 if self.test_predictor_acc: return training_continued() # if we choose this mode, we want to check and compare the final prediction everytime, so that we have more comparisons
                 return training_aborted()
             
@@ -158,6 +158,6 @@ class training_aborted:
         self.aborted = True
 
     def return_metrics(self, loss, vectors, id2node, function_names, G):
-        return -math.inf, -math.inf, math.inf
+        return -math.inf, -math.inf, loss
 
     

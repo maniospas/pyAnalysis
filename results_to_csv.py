@@ -2,58 +2,92 @@ import csv
 import os
 import logger
 import plots
+import numpy as np
 
 
 
-def export_results_to_csv(metric_to_plot, results, configs, predictor, direct_on=False, rectangles=[]):    
-    if metric_to_plot == "sihlouette":
-        index = 0
-    elif metric_to_plot == "auc":
-        index = 1
-    elif metric_to_plot == "loss":
-        index = 2
-    else:
-        raise Exception("The metric that is requested to be plotted is not valid. The available metrics are: 'sihlouette', 'auc', and 'loss'.")
+def export_results_to_csv(rec_results, rec_configs, train_results, train_configs, predictor, direct_on=False, rectangles=[]):    
         
-    y_plot_metric = [abs(i) for i in results[index]]
-    x_plot = [i for i in range(len(y_plot_metric))]
-    x_ticks_configs = [(j, [round(k,3) for k in i[0]], i[1]) for j,i in enumerate(configs)]
+    y_plot_loss, y_plot_auc, y_plot_sihlouette = [abs(i) for i in rec_results[2]], [abs(i) for i in rec_results[1]], [abs(i) for i in rec_results[0]]
+    x_plot = [i for i in range(len(y_plot_loss))]
+    x_ticks_configs = [(j, [round(k,3) for k in i[0]], i[1]) for j,i in enumerate(rec_configs)]
+          
+    create_rec_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y_plot_auc, y_plot_sihlouette, rectangles) 
+    
+    y_plot_loss, y_plot_auc, y_plot_sihlouette = [abs(i) for i in train_results[2]], [abs(i) for i in train_results[1]], [abs(i) for i in train_results[0]]
+    x_plot = [i for i in range(len(y_plot_loss))]
+    x_ticks_configs = [(j, [round(k,3) for k in i[0]], i[1]) for j,i in enumerate(train_configs)]
     
     if predictor.predictor_on:
-        
         training_added, training_added_plot, trainings_cancelled, acc_continuations, acc_cancellations = plots.compute_end_stats(predictor, False)
-                
         y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors, y_plot_f_errors_perc  = [abs(i) for i in predictor.int_errors],  [abs(i) for i in predictor.int_errors_perc], [abs(i) for i in predictor.f_errors], [abs(i) for i in predictor.f_errors_perc]
-
-        create_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_metric, y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors,
+        create_train_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y_plot_auc, y_plot_sihlouette, y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors,
                y_plot_f_errors_perc, training_added, trainings_cancelled, acc_continuations, acc_cancellations, rectangles) 
     else:
-        create_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_metric)
+        create_train_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y_plot_auc, y_plot_sihlouette)
+        
+    create_optimal_path_csv(rectangles)
+
 
     
-def create_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_metric, y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors,
-               y_plot_f_errors_perc, training_added, trainings_cancelled, acc_continuations, acc_cancellations, rectangles):
+def create_rec_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y_plot_auc, y_plot_sihlouette, rectangles):
     
     try:
-        os.remove("plot_data.csv")
+        os.remove("plot_rec_data.csv")
     except:
-        logger.log("no file 'plot_data' to delete")
+        logger.log("no file 'plot_rec_data' to delete")
     
     csv_data = []    
 
-    csv_data.append(["exp. number", "configurations", "loss"])
-    for a,b,c in zip(x_plot, x_ticks_configs, y_plot_metric):
-        csv_data.append([a, b, c])
+    csv_data.append(["rectangle number", "configurations", "loss", "AUC", "Sihlouette"])
+    for a,b,c,d,e in zip(x_plot, x_ticks_configs, y_plot_loss, y_plot_auc, y_plot_sihlouette):
+        csv_data.append([a, b, c, d, e])        
+    with open('plot_rec_data.csv', 'w', newline='') as csvFile:
+        writer = csv.writer(csvFile)
+        writer.writerows(csv_data)
+    csvFile.close()                       
         
-    with open('plot_data.csv', 'w', newline='') as csvFile:
+    if direct_on:
+        with open('plot_rec_data_dir.csv' ,'w', newline='') as outFile:
+            fileWriter = csv.writer(outFile)
+            with open('plot_rec_data.csv','r') as inFile:
+                fileReader = csv.reader(inFile)
+                for i, row in enumerate(fileReader):
+                    if i == 0:
+                        row.extend(["created in x DIRECT iteration", "rectangle volumes", "rectangle diameters", "optimal"])
+                        fileWriter.writerow(row)
+                    else:
+                        row.extend([rectangles[i-1].created_in_iteration, rectangles[i-1].rec_size_list, rectangles[i-1].rec_diag_list, rectangles[i-1].optimal])
+                        fileWriter.writerow(row)
+        outFile.close()
+        inFile.close()
+        os.remove("plot_rec_data.csv")
+        os.rename("plot_rec_data_dir.csv", "plot_rec_data.csv")
+        
+      
+def create_train_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y_plot_auc, y_plot_sihlouette, y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors,
+               y_plot_f_errors_perc, training_added, trainings_cancelled, acc_continuations, acc_cancellations, rectangles):
+    
+    try:
+        os.remove("plot_train_data.csv")
+    except:
+        logger.log("no file 'plot_train_data' to delete")
+    
+    csv_data = []    
+
+    csv_data.append(["exp. number", "configurations", "loss", "AUC", "Sihlouette"])
+    for a,b,c,d,e in zip(x_plot, x_ticks_configs, y_plot_loss, y_plot_auc, y_plot_sihlouette):
+        csv_data.append([a, b, c, d, e])
+        
+    with open('plot_train_data.csv', 'w', newline='') as csvFile:
         writer = csv.writer(csvFile)
         writer.writerows(csv_data)
     csvFile.close()
 
     if predictor.predictor_on:
-        with open('plot_data_pred.csv' ,'w', newline='') as outFile:
+        with open('plot_train_data_pred.csv' ,'w', newline='') as outFile:
             fileWriter = csv.writer(outFile)
-            with open('plot_data.csv','r') as inFile:
+            with open('plot_train_data.csv','r') as inFile:
                 fileReader = csv.reader(inFile)
                 for i, row in enumerate(fileReader):
                     if i == 0:
@@ -66,15 +100,15 @@ def create_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_metric, y_p
                         fileWriter.writerow(row)
         outFile.close()
         inFile.close()
-        os.remove("plot_data.csv")
-        os.rename("plot_data_pred.csv", "plot_data.csv")
+        os.remove("plot_train_data.csv")
+        os.rename("plot_train_data_pred.csv", "plot_train_data.csv")
         
         a = acc_cancellations
         
         if predictor.test_predictor_acc:
-            with open('plot_data_test_pred_acc.csv' ,'w', newline='') as outFile:
+            with open('plot_train_data_test_pred_acc.csv' ,'w', newline='') as outFile:
                 fileWriter = csv.writer(outFile)
-                with open('plot_data.csv','r') as inFile:
+                with open('plot_train_data.csv','r') as inFile:
                     fileReader = csv.reader(inFile)
                     for i, row in enumerate(fileReader):
                         if i == 0:
@@ -85,26 +119,73 @@ def create_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_metric, y_p
                             fileWriter.writerow(row)
             outFile.close()
             inFile.close()
-            os.remove("plot_data.csv")
-            os.rename("plot_data_test_pred_acc.csv", "plot_data.csv")                
+            os.remove("plot_train_data.csv")
+            os.rename("plot_train_data_test_pred_acc.csv", "plot_train_data.csv")                
         
-        
+    """    
     if direct_on:
-        with open('plot_data_dir.csv' ,'w', newline='') as outFile:
+        with open('plot_train_data_dir.csv' ,'w', newline='') as outFile:
             fileWriter = csv.writer(outFile)
-            with open('plot_data.csv','r') as inFile:
+            with open('plot_train_data.csv','r') as inFile:
                 fileReader = csv.reader(inFile)
                 for i, row in enumerate(fileReader):
                     if i == 0:
                         row.extend(["rectangle volumes", "rectangle diameters"])
                         fileWriter.writerow(row)
                     else:
-                        row.extend([rectangles[i-1].size_list, rectangles[i-1].diag_list])
+                        row.extend([rectangles[(i-1)//rectangles[0].iterations].train_size_list, rectangles[(i-1)//rectangles[0].iterations].train_diag_list])
                         fileWriter.writerow(row)
         outFile.close()
         inFile.close()
-        os.remove("plot_data.csv")
-        os.rename("plot_data_dir.csv", "plot_data.csv")
+        os.remove("plot_train_data.csv")
+        os.rename("plot_train_data_dir.csv", "plot_train_data.csv") 
+        """
+  
+"""      
+def create_optimal_losses_csv(optimal_losses):
+    
+    try:
+        os.remove("optimal_losses_data.csv")
+    except:
+        logger.log("no file 'optimal_losses_data' to delete")
+    
+    csv_data = []    
+    csv_data.append(["optimal_losses"])
+    for a in optimal_losses: csv_data.append([a])
+        
+    with open('optimal_losses_data.csv', 'w', newline='') as csvFile:
+        writer = csv.writer(csvFile)
+        writer.writerows(csv_data)
+    csvFile.close()        
+"""        
+        
+        
+def create_optimal_path_csv(rectangles):
+    rec = rectangles[[x.loss for x in rectangles].index(min([x.loss for x in rectangles]))]
+    path, configs = [], []
+    while True:
+        path.append(rec.loss)
+        configs.append(rec.configs)
+        if rec.parent_index is np.nan: break
+        rec = rectangles[rec.parent_index]        
+    path, configs = path[::-1], configs[::-1]       
+
+    try:
+        os.remove("optimal_path_data.csv")
+    except:
+        logger.log("no file 'optimal_path_data' to delete")
+    
+    csv_data = []    
+
+    csv_data.append(["optimal path loss", "optimal path configurations"])
+    for a,b in zip(path, configs):
+        csv_data.append([a, b])        
+    with open('optimal_path_data.csv', 'w', newline='') as csvFile:
+        writer = csv.writer(csvFile)
+        writer.writerows(csv_data)
+    csvFile.close()
+        
+        
         
         
 def cvalidation_data_to_csv(cvalidation_data):
