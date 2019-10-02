@@ -4,19 +4,19 @@ from predictor import Predictor
 import logger
 import tqdm
 
-CONVERGENCE_STOP_PERC = 0.07
+CONVERGENCE_STOP_PERC = 0.045
 
 def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", predictor=Predictor(False)):
     dim = x_train.shape[0]
     import tensorflow as tf
     # TENSORFLOW MODEL
-    x = tf.placeholder(tf.float64, shape=(None, dim))
-    W1 = tf.cast(tf.Variable(tf.random_normal([dim, EMBEDDING_DIM])), tf.float64)
-    b1 = tf.cast(tf.Variable(tf.random_normal([EMBEDDING_DIM])), tf.float64)
+    x = tf.placeholder(tf.float32, shape=(None, dim))
+    W1 = tf.cast(tf.Variable(tf.random_normal([dim, EMBEDDING_DIM])), tf.float32)
+    b1 = tf.cast(tf.Variable(tf.random_normal([EMBEDDING_DIM])), tf.float32)
     hidden_representation = tf.add(tf.matmul(x,W1), b1)
-    y = tf.placeholder(tf.float64, shape=(None, dim))
-    W2 = tf.cast(tf.Variable(tf.random_normal([EMBEDDING_DIM, dim])), tf.float64)
-    b2 = tf.cast(tf.Variable(tf.random_normal([dim])), tf.float64)
+    y = tf.placeholder(tf.float32, shape=(None, dim))
+    W2 = tf.cast(tf.Variable(tf.random_normal([EMBEDDING_DIM, dim])), tf.float32)
+    b2 = tf.cast(tf.Variable(tf.random_normal([dim])), tf.float32)
     prediction = tf.nn.sigmoid(tf.add( tf.matmul(hidden_representation, W2), b2))
     
     # TRAIN

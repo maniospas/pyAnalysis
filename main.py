@@ -20,14 +20,15 @@ pars = parameters.parameters(G)
 
 predictor = pred.Predictor(True, svr_params=['rbf', 10000, 10], test_predictor_acc=False)
 
-rectangles, sorted_results, trisection_counter, predictor = main_ops.find_best_settings_direct(G=G, filter_dim=8, epsilon=10**(-4),
-                                                trisection_lim=70, train_iterations=3, predictor=predictor)
+#rectangles, sorted_results, trisection_counter, predictor = main_ops.find_best_settings_direct(G=G, filter_dim=6, epsilon=10**(-4),
+#                                                trisection_lim=10, train_iterations=3, predictor=predictor)
 
 
 #res = main_ops.cross_validate_svr()
  
-#pars = parameters.parameters(G, False, False, [], [], True, [[0.7, 0.5, 0.8, 0.3, 0.2, 0.8, 0.15, 0.2]], [100], 1, math.inf)
-#res, conf, pred = training.train(G, pars, predictor)
+pars = parameters.parameters(G, False, False, [], [], True, [[0.7, 0.5, 0.8, 0.3, 0.2, 0.8, 0.15, 0.2]], [100], 1, 200)
+res, conf, pred = training.train(G, pars, predictor)
+
 
 
 

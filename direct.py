@@ -20,7 +20,7 @@ class Rectangle:
         # the last dimension is not a filter parameter, its the embedding dimension. It follows logarithmic values
         self.diag = np.sqrt(sum([(self.centre[i]-self.axes[i][0])**2 for i in range(self.dims)]))
         self.iterations = train_iterations
-        self.pars = parameters.parameters(G, False, False, [], [], True, [self.centre], [100], self.iterations, math.inf)
+        self.pars = parameters.parameters(G, False, False, [], [], True, [self.centre], [100], self.iterations, 100)
         if middle_rec:
             self.auc = inherited_rec.auc
             self.sihl = inherited_rec.sihl
@@ -44,7 +44,7 @@ class Rectangle:
             self.auc = (sum([x for x in results[1] if x!= -math.inf])/len([x for x in results[1] if x!= -math.inf]) if len([x for x in results[1] if x!= -math.inf])!=0 else -math.inf) if self.iterations>1 else results[1]
             self.sihl = (sum([x for x in results[0] if x!= -math.inf])/len([x for x in results[0] if x!= -math.inf]) if len([x for x in results[0] if x!= -math.inf])!=0 else -math.inf) if self.iterations>1 else results[0]
             self.loss = sum([x for x in results[2]])/len([x for x in results[2]]) if self.iterations>1 else results[2]
-            self.configs = configs
+            self.configs = configs[0]
             self.rec_size_list = [np.nan for x in range(1 + 2*counter)]
             self.rec_diag_list = [np.nan for x in range(1 + 2*counter)]
             self.optimal = [np.nan for x in range(1 + 2*counter)]

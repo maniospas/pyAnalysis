@@ -162,13 +162,14 @@ def create_optimal_losses_csv(optimal_losses):
         
 def create_optimal_path_csv(rectangles):
     rec = rectangles[[x.loss for x in rectangles].index(min([x.loss for x in rectangles]))]
-    path, configs = [], []
+    path, configs, iterations = [], [], []
     while True:
         path.append(rec.loss)
         configs.append(rec.configs)
+        iterations.append(rec.created_in_iteration)
         if rec.parent_index is np.nan: break
         rec = rectangles[rec.parent_index]        
-    path, configs = path[::-1], configs[::-1]       
+    path, configs, iterations = path[::-1], configs[::-1], iterations[::-1]       
 
     try:
         os.remove("optimal_path_data.csv")
@@ -177,9 +178,9 @@ def create_optimal_path_csv(rectangles):
     
     csv_data = []    
 
-    csv_data.append(["optimal path loss", "optimal path configurations"])
-    for a,b in zip(path, configs):
-        csv_data.append([a, b])        
+    csv_data.append(["optimal path loss", "optimal path configurations", "direct iteration"])
+    for a,b,c in zip(path, configs, iterations):
+        csv_data.append([a, b, c])        
     with open('optimal_path_data.csv', 'w', newline='') as csvFile:
         writer = csv.writer(csvFile)
         writer.writerows(csv_data)
