@@ -4,6 +4,8 @@ import logger
 import sklearn
 import tqdm
 import warnings
+import scipy
+
             
 
 def create_filter(category="uniform", length=5, custom_filter_pars = []):
@@ -26,18 +28,24 @@ def create_filter(category="uniform", length=5, custom_filter_pars = []):
     return [filtering_algorithm(x) for x in range(length)]
 
 
-def apply_filter(G, created_filter, normalization="symmetric", print_bool=True):
+def apply_filter(G, created_filter, normalization="symmetric", print_bool=True):        
     normalization = normalization.lower()
-    M = nx.to_scipy_sparse_matrix(G, dtype=float)
+    M = nx.to_scipy_sparse_matrix(G, weight="weight", dtype=float, format="coo")
     if normalization == "auto":
         normalization = "col" if G.is_directed() else "symmetric"
     if normalization == "col":
         M = sklearn.preprocessing.normalize(M, "l1", axis=1, copy=False)
     elif normalization == "symmetric":
-        M = sklearn.preprocessing.normalize(M, "l2", axis=0, copy=False)
-        M = sklearn.preprocessing.normalize(M, "l2", axis=1, copy=False)
+        S = scipy.array(np.sqrt(M.sum(axis=1))).flatten()
+        S[S != 0] = 1.0 / S[S != 0]
+        Qleft = scipy.sparse.spdiags(S.T, 0, *M.shape, format='csr')
+        S = scipy.array(np.sqrt(M.sum(axis=0))).flatten()
+        S[S != 0] = 1.0 / S[S != 0]
+        Qright = scipy.sparse.spdiags(S.T, 0, *M.shape, format='csr')
+        M = Qleft * M * Qright
     elif normalization != "none":
         raise Exception("Supported normalizations: none, col, symmetric, auto")
+        
     power = M.copy()
     result = 0
     spectrum = []

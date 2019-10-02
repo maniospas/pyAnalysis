@@ -26,7 +26,7 @@ predictor = pred.Predictor(True, svr_params=['rbf', 10000, 10], test_predictor_a
 
 #res = main_ops.cross_validate_svr()
  
-pars = parameters.parameters(G, False, False, [], [], True, [[0.7, 0.5, 0.8, 0.3, 0.2, 0.8, 0.15, 0.2]], [100], 1, 200)
+pars = parameters.parameters(G, False, False, [], [], True, [[1, 0.5, 0.2, 0.5, 0.3, 0.6]], [100], 1, 1)
 res, conf, pred = training.train(G, pars, predictor)
 
 

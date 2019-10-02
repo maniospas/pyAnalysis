@@ -4,7 +4,7 @@ from predictor import Predictor
 import logger
 import tqdm
 
-CONVERGENCE_STOP_PERC = 0.045
+CONVERGENCE_STOP_PERC = 0
 
 def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", predictor=Predictor(False)):
     dim = x_train.shape[0]
@@ -32,8 +32,8 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
         loss_function = tf.reduce_mean(tf.multiply(tf.square(delta),tf.sqrt(1. + tf.square((y - prediction) / delta)) - 1. ))
     elif loss=="Entropy":
         loss_function = tf.reduce_mean(-tf.reduce_sum(y * tf.log(prediction+1.E-6), reduction_indices=[1]))
-    elif loss=="Entropy2":
-        loss_function = tf.nn.softmax_cross_entropy_with_logits_v2(labels=y, logits=prediction)
+    elif loss=="Cross-Entropy":
+        loss_function = -tf.reduce_sum(y * tf.log(prediction+1.E-6)+(1-y)*tf.log(1-prediction+1.E-6))
     else:
         raise Exception("Invalid loss function")
     train_step = tf.train.GradientDescentOptimizer(learning_rate=0.1).minimize(loss_function)
@@ -43,6 +43,7 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
     for iteration in tqdm.tqdm(range(epochs), desc="Training embeddings"):
         session.run(train_step, feed_dict={x: x_train, y: y_train})
         loss = session.run(loss_function, feed_dict={x: x_train, y: y_train})
+        logger.log("iteration:", iteration, "loss:", loss)
         if math.isnan(loss):
             raise Exception("Loss was None")
         if iteration < epochs//10:

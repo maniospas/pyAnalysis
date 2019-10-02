@@ -28,7 +28,7 @@ def train(G, pars, predictor=None):
             for i in range(pars.iterations): 
                 logger.log("\n\nStarting iteration number", i+1, "out of", pars.iterations)
                 start_in = time.time()
-                vectors, loss, predictor, complete_training_bool = topic.encode(y_train, x_train, dim, pars.epochs, "Entropy", predictor)
+                vectors, loss, predictor, complete_training_bool = topic.encode(y_train, x_train, dim, pars.epochs, "Cross-Entropy", predictor)
                 end_in = time.time()
                 logger.log("Time it took to train:", end_in-start_in, "seconds")              
                 results[0][total_counter], results[1][total_counter], results[2][total_counter] =  complete_training_bool.return_metrics(loss, vectors, id2node, function_names, G)

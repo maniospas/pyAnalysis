@@ -54,7 +54,7 @@ def create_pyan_graph(path, keep_undefined=False, content="default"):
 
 def _create_graph(pairs):
     logger.log('----- Constructing Network -----')
-    G = nx.DiGraph()
+    G = nx.Graph()
     for node1, node2 in pairs:
         if not G.has_node(node1):
             G.add_node(node1)
