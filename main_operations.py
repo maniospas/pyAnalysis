@@ -39,7 +39,7 @@ def find_best_settings_direct(G, filter_dim, epsilon, trisection_lim, train_iter
 
     starting_filter_parameters = [[0,1] for x in range(int(filter_dim))]
     rectangles = [direct.Rectangle(G, starting_filter_parameters, -1, 0, train_iterations, np.nan, predictor)]
-    counter, direct_iteration, optimal_results = 0, 1, []
+    counter, direct_iteration  = 0, 1
 
     start = time.time()    
     while True:

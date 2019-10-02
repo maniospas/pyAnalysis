@@ -58,7 +58,7 @@ def apply_filter(G, created_filter, normalization="symmetric", print_bool=True):
     if print_bool:
         logger.log("Spectrum", spectrum)
     return result
-    #return {nodei: {nodej: result[i,j] for j, nodej in enumerate(G.nodes())} for i, nodei in enumerate(G.nodes())}
+
 
 def transpose(x):
     return [[(x[j][i]) for j in range(len(x))] for i in range(len(x[0]))] 
@@ -71,9 +71,6 @@ class LinkAUC:
         if self.G.is_directed():
             warnings.warn("LinkAUC is designed for undirected graphs", stacklevel=2)
 
-    def _similarity(self, v, u, vectors):
-        a, b = vectors[v], vectors[u]
-        return sum(a[i]*b[i] for i in range(len(a)))
 
     def evaluate(self, ranks, max_negative_samples=2000):
         negative_candidates = list(self.G)
@@ -85,11 +82,11 @@ class LinkAUC:
             neighbors = self.G._adj[node]
             for positive in neighbors:
                 real.append(1)
-                predicted.append(self._similarity(node, positive, ranks))
+                predicted.append(np.dot(ranks[node], ranks[positive]))
             for negative in negative_candidates:
                 if negative != node and negative not in neighbors:
                     real.append(0)
-                    predicted.append(self._similarity(node, negative, ranks))
+                    predicted.append(np.dot(ranks[node], ranks[negative]))
         fpr, tpr, _ = sklearn.metrics.roc_curve(real, predicted)
         return sklearn.metrics.auc(fpr, tpr)
 

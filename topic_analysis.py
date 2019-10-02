@@ -17,7 +17,7 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
     y = tf.placeholder(tf.float32, shape=(None, dim))
     W2 = tf.cast(tf.Variable(tf.random_normal([EMBEDDING_DIM, dim])), tf.float32)
     b2 = tf.cast(tf.Variable(tf.random_normal([dim])), tf.float32)
-    prediction = tf.nn.sigmoid(tf.add( tf.matmul(hidden_representation, W2), b2))
+    prediction = tf.nn.softmax(tf.add( tf.matmul(hidden_representation, W2), b2))
     
     # TRAIN
     session = tf.Session()
@@ -44,6 +44,8 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
         session.run(train_step, feed_dict={x: x_train, y: y_train})
         loss = session.run(loss_function, feed_dict={x: x_train, y: y_train})
         logger.log("iteration:", iteration, "loss:", loss)
+        #logger.log("y:", session.run(y, feed_dict={x: x_train, y: y_train}))
+        #logger.log("prediction:", session.run(prediction, feed_dict={x: x_train, y: y_train}))        
         if math.isnan(loss):
             raise Exception("Loss was None")
         if iteration < epochs//10:

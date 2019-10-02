@@ -145,7 +145,7 @@ class training_continued:
     def return_metrics(self, loss, vectors, id2node, function_names, G):
         sihlouette = topic.cluster(vectors, id2node, function_names)
         vectors = {id2node[u]: vectors[u] for u in range(len(vectors))}
-        auc = math_ops.LinkAUC(G).evaluate(vectors, int((AUC_NEG_SAMPLES_PERC/100)*len(vectors)))
+        auc = math_ops.LinkAUC(G).evaluate(vectors, 100)
         return sihlouette, auc, loss           
         
     

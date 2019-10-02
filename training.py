@@ -20,15 +20,15 @@ def train(G, pars, predictor=None):
     start_out = time.time()
     for filt in pars.filters:
         for dim in pars.emb_dims:
-            x_train = np.identity(len(G))
-            y_train = math_ops.apply_filter(G, filt)
+            y_train = np.identity(len(G))
+            x_train = math_ops.apply_filter(G, filt)
             node2id = {node: i for i,node in enumerate(G.nodes())}
             id2node = {node2id[node]: node for node in G.nodes()}
             function_names = [node for i, node in enumerate(G.nodes())]
             for i in range(pars.iterations): 
                 logger.log("\n\nStarting iteration number", i+1, "out of", pars.iterations)
                 start_in = time.time()
-                vectors, loss, predictor, complete_training_bool = topic.encode(y_train, x_train, dim, pars.epochs, "Cross-Entropy", predictor)
+                vectors, loss, predictor, complete_training_bool = topic.encode(x_train, y_train, dim, pars.epochs, "Cross-Entropy", predictor)
                 end_in = time.time()
                 logger.log("Time it took to train:", end_in-start_in, "seconds")              
                 results[0][total_counter], results[1][total_counter], results[2][total_counter] =  complete_training_bool.return_metrics(loss, vectors, id2node, function_names, G)
