@@ -49,13 +49,14 @@ def apply_filter(G, created_filter, normalization="symmetric", print_bool=True):
     power = M.copy()
     result = 0
     spectrum = []
-    for parameter in tqdm.tqdm(created_filter, desc="Applying filter"):
+    for parameter in tqdm.tqdm(created_filter, desc="Applying filter", position=0, leave=True):
         spectrum.append(np.sum(np.abs(power)))
         result += power*parameter
         power = power * M
     result /= sum(created_filter)
     result = result.todense()
     if print_bool:
+        logger.log("Filter", created_filter)
         logger.log("Spectrum", spectrum)
     return result
 
@@ -78,7 +79,7 @@ class LinkAUC:
             negative_candidates = np.random.choice(negative_candidates, max_negative_samples)
         real = list()
         predicted = list()
-        for node in tqdm.tqdm(self.nodes, desc="LinkAUC"):
+        for node in tqdm.tqdm(self.nodes, desc="LinkAUC", position=0, leave=True):
             neighbors = self.G._adj[node]
             for positive in neighbors:
                 real.append(1)

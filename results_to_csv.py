@@ -6,7 +6,7 @@ import numpy as np
 
 
 
-def export_results_to_csv(rec_results, rec_configs, train_results, train_configs, predictor, direct_on=False, rectangles=[]):    
+def export_results_to_csv(rec_results, rec_configs, train_results, train_configs, predictor, direct_on=False, rectangles=[], sorted_results=[]):    
         
     y_plot_loss, y_plot_auc, y_plot_sihlouette = [abs(i) for i in rec_results[2]], [abs(i) for i in rec_results[1]], [abs(i) for i in rec_results[0]]
     x_plot = [i for i in range(len(y_plot_loss))]
@@ -27,6 +27,11 @@ def export_results_to_csv(rec_results, rec_configs, train_results, train_configs
         create_train_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y_plot_auc, y_plot_sihlouette)
         
     create_optimal_path_csv(rectangles)
+    
+    sorted_loss , sorted_auc, sorted_sihl = sorted_results[0], sorted_results[1], sorted_results[2]
+    create_sorted_loss_csv(sorted_loss)
+    create_sorted_sihl_csv(sorted_sihl)
+    create_sorted_auc_csv(sorted_auc)
 
 
     
@@ -122,54 +127,19 @@ def create_train_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss,
             os.remove("plot_train_data.csv")
             os.rename("plot_train_data_test_pred_acc.csv", "plot_train_data.csv")                
         
-    """    
-    if direct_on:
-        with open('plot_train_data_dir.csv' ,'w', newline='') as outFile:
-            fileWriter = csv.writer(outFile)
-            with open('plot_train_data.csv','r') as inFile:
-                fileReader = csv.reader(inFile)
-                for i, row in enumerate(fileReader):
-                    if i == 0:
-                        row.extend(["rectangle volumes", "rectangle diameters"])
-                        fileWriter.writerow(row)
-                    else:
-                        row.extend([rectangles[(i-1)//rectangles[0].iterations].train_size_list, rectangles[(i-1)//rectangles[0].iterations].train_diag_list])
-                        fileWriter.writerow(row)
-        outFile.close()
-        inFile.close()
-        os.remove("plot_train_data.csv")
-        os.rename("plot_train_data_dir.csv", "plot_train_data.csv") 
-        """
-  
-"""      
-def create_optimal_losses_csv(optimal_losses):
-    
-    try:
-        os.remove("optimal_losses_data.csv")
-    except:
-        logger.log("no file 'optimal_losses_data' to delete")
-    
-    csv_data = []    
-    csv_data.append(["optimal_losses"])
-    for a in optimal_losses: csv_data.append([a])
-        
-    with open('optimal_losses_data.csv', 'w', newline='') as csvFile:
-        writer = csv.writer(csvFile)
-        writer.writerows(csv_data)
-    csvFile.close()        
-"""        
-        
         
 def create_optimal_path_csv(rectangles):
     rec = rectangles[[x.loss for x in rectangles].index(min([x.loss for x in rectangles]))]
-    path, configs, iterations = [], [], []
+    path_loss, path_auc, path_sihl, configs, iterations = [], [], [], [], []
     while True:
-        path.append(rec.loss)
+        path_loss.append(rec.loss)
+        path_auc.append(rec.auc)
+        path_loss.append(rec.loss)
         configs.append(rec.configs)
         iterations.append(rec.created_in_iteration)
         if rec.parent_index is np.nan: break
         rec = rectangles[rec.parent_index]        
-    path, configs, iterations = path[::-1], configs[::-1], iterations[::-1]       
+    path_loss, path_auc, path_sihl, configs, iterations = path_loss[::-1], path_auc[::-1], path_sihl[::-1], configs[::-1], iterations[::-1]       
 
     try:
         os.remove("optimal_path_data.csv")
@@ -178,16 +148,63 @@ def create_optimal_path_csv(rectangles):
     
     csv_data = []    
 
-    csv_data.append(["optimal path loss", "optimal path configurations", "direct iteration"])
-    for a,b,c in zip(path, configs, iterations):
-        csv_data.append([a, b, c])        
+    csv_data.append(["optimal path loss", "optimal path auc", "optimal path sihlouette", "optimal path configurations", "direct iteration"])
+    for a,b,c,d,e in zip(path_loss, path_auc, path_sihl, configs, iterations):
+        csv_data.append([a, b, c, d ,e])        
     with open('optimal_path_data.csv', 'w', newline='') as csvFile:
         writer = csv.writer(csvFile)
         writer.writerows(csv_data)
     csvFile.close()
-        
-        
-        
+    
+    
+def create_sorted_loss_csv(sorted_loss):
+    try:
+        os.remove("sorted_loss.csv")
+    except:
+        logger.log("no file 'sorted_loss' to delete")        
+
+    csv_data = []
+
+    csv_data.append(["loss", "configuration"])
+    for a in sorted_loss:
+        csv_data.append([a[0], a[1]])        
+    with open('sorted_loss.csv', 'w', newline='') as csvFile:
+        writer = csv.writer(csvFile)
+        writer.writerows(csv_data)
+    csvFile.close()        
+    
+def create_sorted_auc_csv(sorted_auc):
+    try:
+        os.remove("sorted_auc.csv")
+    except:
+        logger.log("no file 'sorted_auc' to delete")        
+
+    csv_data = []    
+
+    csv_data.append(["auc", "configuration"])
+    for a in sorted_auc:
+        csv_data.append([a[0], a[1]])        
+    with open('sorted_auc.csv', 'w', newline='') as csvFile:
+        writer = csv.writer(csvFile)
+        writer.writerows(csv_data)
+    csvFile.close()      
+    
+def create_sorted_sihl_csv(sorted_sihl):
+    try:
+        os.remove("sorted_sihl.csv")
+    except:
+        logger.log("no file 'sorted_sihl' to delete")        
+
+    csv_data = []    
+
+    csv_data.append(["sihlouette", "configuration"])
+    for a in sorted_sihl:
+        csv_data.append([a[0], a[1]])        
+    with open('sorted_sihl.csv', 'w', newline='') as csvFile:
+        writer = csv.writer(csvFile)
+        writer.writerows(csv_data)
+    csvFile.close()      
+           
         
 def cvalidation_data_to_csv(cvalidation_data):
     try:

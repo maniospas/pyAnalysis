@@ -6,11 +6,11 @@ import topic_analysis as topic
 import sklearn.metrics
 import math_operations as math_ops
 import time
-
+from sklearn.preprocessing import StandardScaler
 
 ST_DEV_MUL = 1
 INT_PRED_LIM = 5
-COMPLETE_FIRST_TRAININGS = 10
+COMPLETE_FIRST_TRAININGS = 20
 AUC_NEG_SAMPLES_PERC = 2.5
 
 class Predictor:
@@ -26,7 +26,7 @@ class Predictor:
         self.int_errors_perc = []         # appending 1 or 2 means the intermediate prediction was accurate but the final prediction was bad, so the training was aborted 
         self.f_errors = []                # 1 means the training was correctly cancelled, 2 means the training was wrongly cancelled (we have this distinction only if test_predictor_acc mode is turned on. Else, we append just 1 for every cancellation)
         self.f_errors_perc = []           # appending 3 or 4 means the intermediate prediction was accurate and the final prediction was good, so the training continued
-        self.params = svr_params      # 3 means the training was correctly continued, 4 means the training was wrongly continued
+        self.params = svr_params          # 3 means the training was correctly continued, 4 means the training was wrongly continued
         self.test_predictor_acc = test_predictor_acc
         self.acc_cancellations = []
         self.acc_continuations = []
@@ -37,12 +37,13 @@ class Predictor:
     
     def register_loss(self, loss):        
         if self.predictor_on:
-            self.losses.append(math.log(loss))
+            self.losses.append(loss)
 
         
     def predict_intermediate(self):        
         if self.predictor_on:
             if len(self.X_train) >= 1:
+                #scaler = StandardScaler()
                 return SVR(kernel=self.params[0], C=self.params[1], gamma=self.params[2]).fit(np.asarray(self.X_train), np.asarray(self.Y_train_int)).predict(np.asarray([self.losses]))    
             else:
                 return math.e #some big value
@@ -53,14 +54,14 @@ class Predictor:
         if self.predictor_on:
             if self.test_predictor_acc:
                 self.cvalidation_data[0].append(self.losses)
-                self.cvalidation_data[1].append(math.log(loss))
-            self.int_errors.append(math.exp(pred) - loss)
-            self.int_errors_perc.append((math.exp(pred) - loss)/loss*100)
-            if (abs(math.exp(pred) - loss)/loss)*100 > INT_PRED_LIM:
-                logger.log("intermediate prediction is inacurrate by", ((math.exp(pred) - loss)/loss)*100, "%")
+                self.cvalidation_data[1].append(loss)
+            self.int_errors.append(pred - loss)
+            self.int_errors_perc.append((pred - loss)/loss*100)
+            if (abs(pred - loss)/loss)*100 > INT_PRED_LIM:
+                logger.log("intermediate prediction is inacurrate by", ((pred - loss)/loss)*100, "%")
                 return False
             else:
-                logger.log("intermediate prediction is accurate enough. The difference is", ((math.exp(pred) - loss)/loss)*100, "%")
+                logger.log("intermediate prediction is accurate enough. The difference is", ((pred - loss)/loss)*100, "%")
                 return True
         return False
 
@@ -77,11 +78,11 @@ class Predictor:
         if pred_final is None:  # meaning either predictor is turned off, or the earlier prediction wasnt accurate enough, so we didnt attempt final one
             return training_continued()
         else:
-            if self.loss_is_good(math.exp(pred_final), True) or len(self.loss_list) < COMPLETE_FIRST_TRAININGS:
+            if self.loss_is_good(pred_final, True) or len(self.loss_list) < COMPLETE_FIRST_TRAININGS:
                 if len(self.loss_list) > COMPLETE_FIRST_TRAININGS: logger.log("Prediction of final loss in iteration number " + str(iteration) + " is good. " + "Training continues...")
                 return training_continued()
             else:
-                logger.log("Prediction of final loss in iteration number", iteration, "is too high:", math.exp(pred_final),". Training aborted...")
+                logger.log("Prediction of final loss in iteration number", iteration, "is too high:", pred_final,". Training aborted...")
                 if self.test_predictor_acc: return training_continued() # if we choose this mode, we want to check and compare the final prediction everytime, so that we have more comparisons
                 return training_aborted()
             
@@ -91,14 +92,14 @@ class Predictor:
             if not complete_training_bool.aborted:
                 if intermediate_or_final == "intermediate":
                     self.X_train.append(self.losses)
-                    self.Y_train_int.append(math.log(loss))
+                    self.Y_train_int.append(loss)
                 elif intermediate_or_final == "final":
-                    self.Y_train_f.append(math.log(loss))
+                    self.Y_train_f.append(loss)
 
                     
     def collect_results(self, pred_final, loss, complete_training_bool):
         if self.test_predictor_acc:
-            self.cvalidation_data[2].append(math.log(loss))
+            self.cvalidation_data[2].append(loss)
         if pred_final is None or len(self.loss_list) < COMPLETE_FIRST_TRAININGS:
             self.stats.append(0) # the intermediate prediction was inaccurate or the predictor is turned not active
             self.f_errors.append(np.nan)
@@ -109,9 +110,9 @@ class Predictor:
                 self.stats.append(1) # the intermediate prediction was accurate but the final prediction was bad, so the training was aborted
                 self.f_errors.append(np.nan)
                 self.f_errors_perc.append(np.nan)
-                self.loss_list.append(math.exp(pred_final))
+                self.loss_list.append(pred_final)
             else:
-                if not self.loss_is_good(math.exp(pred_final), False) and self.test_predictor_acc: #meaning the training was aborted but we want to continue for testing stats purposes
+                if not self.loss_is_good(pred_final, False) and self.test_predictor_acc: #meaning the training was aborted but we want to continue for testing stats purposes
                     self.stats.append(1) # even if we continue with the training because we want to test accuracy of final prediction every time, we want to keep our stats right   
                     if loss < min(self.loss_list):
                         self.stats[-1] = 2   # the training was wrongly cancelled
@@ -119,9 +120,9 @@ class Predictor:
                     self.stats.append(3) # the intermediate prediction was accurate and the final prediction was good, so the training continued
                     if not self.loss_is_good(loss, False):
                         self.stats[-1] = 4  # the training wrongly continued                 
-                logger.log("The final prediction error percentage is:", (math.exp(pred_final) - loss)/loss*100, "%:", math.exp(pred_final) - loss)
-                self.f_errors_perc.append((math.exp(pred_final) - loss)/loss*100)
-                self.f_errors.append(math.exp(pred_final) - loss)
+                logger.log("The final prediction error percentage is:", (pred_final - loss)/loss*100, "%:", pred_final - loss)
+                self.f_errors_perc.append((pred_final - loss)/loss*100)
+                self.f_errors.append(pred_final - loss)
                 self.loss_list.append(loss)
         
         
@@ -132,9 +133,9 @@ class Predictor:
     def loss_is_good(self, loss, print_res):
         if print_res:
             if self.loss_is_good(loss, False):
-                logger.log(loss, "<", min(self.loss_list), "+",  np.mean([abs(x) for x in self.int_errors[1:]]), "+", ST_DEV_MUL*np.std(self.int_errors[1:]), "=", min(self.loss_list) + np.mean([abs(x) for x in self.int_errors[1:]]) + ST_DEV_MUL*np.std(self.int_errors[1:]))
+                logger.log(loss, "<", min(self.loss_list), "+",  np.mean([abs(x) for x in self.int_errors[1:]]), "+", ST_DEV_MUL*np.std(self.int_errors[1:]), "=", min(self.loss_list) + np.mean([abs(x) for x in self.int_errors[2:]]) + ST_DEV_MUL*np.std(self.int_errors[2:]))
             else:
-                logger.log(loss, ">=", min(self.loss_list), "+",  np.mean([abs(x) for x in self.int_errors[1:]]), "+", ST_DEV_MUL*np.std(self.int_errors[1:]), "=", min(self.loss_list) + np.mean([abs(x) for x in self.int_errors[1:]]) + ST_DEV_MUL*np.std(self.int_errors[1:]))
+                logger.log(loss, ">=", min(self.loss_list), "+",  np.mean([abs(x) for x in self.int_errors[1:]]), "+", ST_DEV_MUL*np.std(self.int_errors[1:]), "=", min(self.loss_list) + np.mean([abs(x) for x in self.int_errors[2:]]) + ST_DEV_MUL*np.std(self.int_errors[2:]))
         return loss < min(self.loss_list) + np.mean([abs(x) for x in self.int_errors[1:]]) + ST_DEV_MUL*np.std(self.int_errors[1:])
  
     
@@ -145,7 +146,7 @@ class training_continued:
     def return_metrics(self, loss, vectors, id2node, function_names, G):
         sihlouette = topic.cluster(vectors, id2node, function_names)
         vectors = {id2node[u]: vectors[u] for u in range(len(vectors))}
-        auc = math_ops.LinkAUC(G).evaluate(vectors, 100)
+        auc = math_ops.LinkAUC(G).evaluate(vectors, 200)
         return sihlouette, auc, loss           
         
     

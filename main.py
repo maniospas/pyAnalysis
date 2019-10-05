@@ -12,22 +12,22 @@ import math
 
 
 
-G = graph_generation.create_predicate_graph("../networkx")
+G = graph_generation.create_predicate_graph("../keras")
 #vis.visualize(G)
 
 pars = parameters.parameters(G)
 
 
-predictor = pred.Predictor(True, svr_params=['rbf', 10000, 10], test_predictor_acc=False)
+predictor = pred.Predictor(True, svr_params=['rbf', 1000, 1], test_predictor_acc=False)
 
-#rectangles, sorted_results, trisection_counter, predictor = main_ops.find_best_settings_direct(G=G, filter_dim=6, epsilon=10**(-4),
-#                                                trisection_lim=10, train_iterations=3, predictor=predictor)
+rectangles, sorted_results, trisection_counter, predictor = main_ops.find_best_settings_direct(G=G, filter_dim=5, epsilon=10**(-4),
+                                               trisection_lim=1, train_iterations=1, predictor=predictor)
 
 
 #res = main_ops.cross_validate_svr()
  
-pars = parameters.parameters(G, False, False, [], [], True, [[0, 0, 0, 0.5]], [100], 1, 20)
-res, conf, pred = training.train(G, pars, predictor)
+#pars = parameters.parameters(G, False, False, [], [], True, [[1.67, 0.5, 0.83, 0.5, 0.83]], [32], 1, 500)
+#res, conf, pred = training.train(G, pars, predictor)
 
 
 

@@ -71,10 +71,11 @@ def plot_results(results, configs, rectangles, predictor):
     plot5.set_ylabel("loss")
     plot5.set_xlabel("experiment configuration")
     plot_lim = max([x for x in y_plot if (x is not math.inf)])
-    plot5.set_ylim([0.12, plot_lim])
+    #plot5.set_ylim([0.12, plot_lim])
     plot5.scatter(x_plot, y_plot)
     plot5.plot([i for i in x_plot], [0 for i in range(len(x_plot))], c="black")
     plot5.set_xticks(np.arange(len(x_plot))) 
+    a = configs
     plot5.set_xticklabels([(j, [round(k,3) for k in i[0]], i[1]) for j,i in enumerate(configs)])  
     
     plot8 = plt.subplot(15 if predictor.predictor_on else 5, 1, 5)
@@ -102,7 +103,7 @@ def plot_results(results, configs, rectangles, predictor):
         plot1.set_ylabel("intermediate errors")
         plot1.set_xlabel("experiment configuration")        
         y_plot = [abs(i) for i in predictor.int_errors]
-        plot_lim = max(y_plot[10:]) if len(y_plot)>10 else 0.08
+        plot_lim = max(y_plot[10:]) if len(y_plot)>10 else 100
         plot1.set_ylim([0, plot_lim])
         x_plot = [i for i in range(len(y_plot))]
         plot1.plot(x_plot, y_plot)        
@@ -143,7 +144,7 @@ def plot_results(results, configs, rectangles, predictor):
         plot2.set_xlabel("experiment configuration")
         y_plot = [abs(i) for i in predictor.f_errors]
         a = [i for i in y_plot if not np.isnan(i)][10:]
-        plot_lim = max(a) if (len(a) != 0) else 0.05
+        plot_lim = max(a) if (len(a) != 0) else 100
         plot2.set_ylim(0, plot_lim)
         x_plot = [i for i in range(len(y_plot))]
         plot2.scatter(x_plot, y_plot)

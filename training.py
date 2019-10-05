@@ -21,12 +21,14 @@ def train(G, pars, predictor=None):
     for filt in pars.filters:
         for dim in pars.emb_dims:
             y_train = np.identity(len(G))
-            x_train = math_ops.apply_filter(G, filt)
+            x_train = np.asarray(math_ops.apply_filter(G, filt))
+            m = np.amax(x_train)
+            x_train = x_train/m
             node2id = {node: i for i,node in enumerate(G.nodes())}
             id2node = {node2id[node]: node for node in G.nodes()}
             function_names = [node for i, node in enumerate(G.nodes())]
             for i in range(pars.iterations): 
-                logger.log("\n\nStarting iteration number", i+1, "out of", pars.iterations)
+                logger.log("\nStarting iteration number", i+1, "out of", pars.iterations)
                 start_in = time.time()
                 vectors, loss, predictor, complete_training_bool = topic.encode(x_train, y_train, dim, pars.epochs, "Cross-Entropy", predictor)
                 end_in = time.time()

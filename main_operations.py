@@ -62,10 +62,10 @@ def find_best_settings_direct(G, filter_dim, epsilon, trisection_lim, train_iter
     fig2 = plots.plot_results(train_results, train_configs, rectangles, predictor)
     plt.show
     
+    sorted_results = [direct.sort_rectangles(rectangles, "loss"), direct.sort_rectangles(rectangles, "auc"), direct.sort_rectangles(rectangles, "sihlouette")] 
+    
     if predictor.test_predictor_acc: results_to_csv.cvalidation_data_to_csv(predictor.cvalidation_data)
-    results_to_csv.export_results_to_csv(rec_results, rec_configs, train_results, train_configs, predictor, True, rectangles)
-
-    sorted_results = direct.sort_rectangles(rectangles, "loss")       
+    results_to_csv.export_results_to_csv(rec_results, rec_configs, train_results, train_configs, predictor, True, rectangles, sorted_results)
     
     return rectangles, sorted_results, counter, predictor
 

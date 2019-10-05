@@ -5,19 +5,22 @@ import logger
 import tqdm
 
 CONVERGENCE_STOP_PERC = 0
+RANDOM_NORMAL_STDDEV = 0.1
+LEARNING_RATE = 0.000001
 
 def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", predictor=Predictor(False)):
     dim = x_train.shape[0]
     import tensorflow as tf
     # TENSORFLOW MODEL
     x = tf.placeholder(tf.float32, shape=(None, dim))
-    W1 = tf.cast(tf.Variable(tf.random_normal([dim, EMBEDDING_DIM])), tf.float32)
-    b1 = tf.cast(tf.Variable(tf.random_normal([EMBEDDING_DIM])), tf.float32)
+    W1 = tf.cast(tf.Variable(tf.random_normal([dim, EMBEDDING_DIM], mean=0, stddev=RANDOM_NORMAL_STDDEV)), tf.float32)
+    b1 = tf.cast(tf.Variable(tf.random_normal([EMBEDDING_DIM], mean=0, stddev=RANDOM_NORMAL_STDDEV)), tf.float32)
     hidden_representation = tf.add(tf.matmul(x,W1), b1)
     y = tf.placeholder(tf.float32, shape=(None, dim))
-    W2 = tf.cast(tf.Variable(tf.random_normal([EMBEDDING_DIM, dim])), tf.float32)
-    b2 = tf.cast(tf.Variable(tf.random_normal([dim])), tf.float32)
-    prediction = tf.nn.softmax(tf.add( tf.matmul(hidden_representation, W2), b2))
+    W2 = tf.cast(tf.Variable(tf.random_normal([EMBEDDING_DIM, dim], mean=0, stddev=RANDOM_NORMAL_STDDEV)), tf.float32)
+    b2 = tf.cast(tf.Variable(tf.random_normal([dim], mean=0, stddev=RANDOM_NORMAL_STDDEV)), tf.float32)
+    prediction = tf.nn.sigmoid(tf.add( tf.matmul(hidden_representation, W2), b2))
+    
     
     # TRAIN
     session = tf.Session()
@@ -33,27 +36,38 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
     elif loss=="Entropy":
         loss_function = tf.reduce_mean(-tf.reduce_sum(y * tf.log(prediction+1.E-6), reduction_indices=[1]))
     elif loss=="Cross-Entropy":
-        loss_function = -tf.reduce_sum(y * tf.log(prediction+1.E-6)+(1-y)*tf.log(1-prediction+1.E-6))
+        loss_function =  tf.reduce_sum(-tf.multiply(y, tf.log(prediction+1.E-6)) - tf.multiply((1. - y), tf.log(1. - prediction+1.E-6)))
+    elif loss=="Cross-Entropy2":
+        loss_function = -tf.reduce_sum(y * tf.log(prediction+1.E-6) - (1-y)*tf.log(1-prediction+1.E-6))
+    elif loss == "Sigmoid Cross-Entropy":
+        loss_function = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(labels= y, logits=prediction))
     else:
         raise Exception("Invalid loss function")
-    train_step = tf.train.GradientDescentOptimizer(learning_rate=0.1).minimize(loss_function)
+    train_step = tf.train.GradientDescentOptimizer(learning_rate=LEARNING_RATE).minimize(loss_function)
 
     predictor.clear_losses()         
     prev_loss = 1
-    for iteration in tqdm.tqdm(range(epochs), desc="Training embeddings"):
+    change_percentage = []
+    #sigmoid_entry_before = session.run(tf.add( tf.matmul(hidden_representation, W2), b2), feed_dict={x: x_train, y: y_train})
+    for iteration in tqdm.tqdm(range(epochs), desc="Training embeddings", position=0, leave=True):
         session.run(train_step, feed_dict={x: x_train, y: y_train})
         loss = session.run(loss_function, feed_dict={x: x_train, y: y_train})
-        logger.log("iteration:", iteration, "loss:", loss)
+        #if iteration%100==0: 
+            #logger.log("iteration:", iteration, "loss:", loss)
+            #logger.log("prediction:", session.run(prediction, feed_dict={x: x_train, y: y_train}))
+        #logger.log("vectors:", session.run(W1+b1))        
         #logger.log("y:", session.run(y, feed_dict={x: x_train, y: y_train}))
-        #logger.log("prediction:", session.run(prediction, feed_dict={x: x_train, y: y_train}))        
+        #logger.log("prediction:", session.run(prediction, feed_dict={x: x_train, y: y_train}))
+        #pr = session.run(prediction, feed_dict={x: x_train, y: y_train})   
+        #sigmoid_entry = session.run(tf.add( tf.matmul(hidden_representation, W2), b2), feed_dict={x: x_train, y: y_train})
+        change_percentage.append((loss-prev_loss)*100/prev_loss)
         if math.isnan(loss):
             raise Exception("Loss was None")
         if iteration < epochs//10:
-            predictor.register_loss(loss)
+            if iteration%10==0: predictor.register_loss(loss)
         else:
-            if abs(loss-prev_loss)*100/prev_loss<CONVERGENCE_STOP_PERC:
-                break
-            prev_loss = loss
+            if abs(loss-prev_loss)*100/prev_loss<CONVERGENCE_STOP_PERC: break
+        prev_loss = loss
         if iteration == epochs//10:
             int_pred = predictor.predict_intermediate()
             predict_final_bool = predictor.attempt_final_prediction_bool(int_pred, loss)
@@ -62,15 +76,22 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
             predictor.add_train_data(training_completed_bool, "intermediate", loss)
             if training_completed_bool.aborted:
                 break
+            
+    #logger.log("prediction:", session.run(prediction, feed_dict={x: x_train, y: y_train}))            
+    #logger.log("W1:", session.run(W1, feed_dict={x: x_train, y: y_train}))
+    #logger.log("B1:", session.run(b1, feed_dict={x: x_train, y: y_train}))
+    #logger.log("W2:", session.run(W2, feed_dict={x: x_train, y: y_train}))
+    #logger.log("B2:", session.run(b2, feed_dict={x: x_train, y: y_train}))
+
         
     vectors = session.run(W1 + b1)
-    logger.log("Training ended in ", iteration, "iterations, loss is ", loss, "previous loss is", prev_loss)
+    logger.log("Training ended in ", iteration, "iterations, loss is ", loss)
     
     predictor.collect_results(final_pred, loss, training_completed_bool)
     predictor.add_train_data(training_completed_bool, "final", loss)    
     
     if not training_completed_bool.aborted: return vectors, loss, predictor, training_completed_bool
-    return vectors,math.exp(final_pred), predictor, training_completed_bool
+    return vectors,final_pred, predictor, training_completed_bool
 
     
 def one_hot(index, size):
@@ -116,6 +137,10 @@ def cluster(X, id2words, show_only):
                     labels[l] = -1
     
     n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+    
+    #import visualize.visualizer
+    #visualize.visualizer.visualize_clusters([[id2words[i] for i in range(len(id2words)) if (show_only is None or id2words[i] in show_only) and labels[i]==cluster] for cluster in range(n_clusters_)])
+
     
     #logger.log('Estimated number of clusters: %d' % n_clusters_)
     #logger.log("Silhouette Coefficient: %0.3f"  % metrics.silhouette_score(X, labels))
