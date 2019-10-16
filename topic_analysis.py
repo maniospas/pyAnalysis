@@ -7,12 +7,14 @@ from sklearn.cluster import KMeans
 from sklearn import metrics
 from sklearn import preprocessing
 import math_operations as mo
-import visualize
+import pandas as pd
+import networkx as nx
+import matplotlib.pyplot as plt
 
 
 CONVERGENCE_STOP_PERC = 0.1
 RANDOM_NORMAL_STDDEV = 0.1
-LEARNING_RATE = 0.00001
+LEARNING_RATE = 0.0001
 
 def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", predictor=Predictor(False), id2node=[], G=np.nan):
     dim = x_train.shape[0]
@@ -83,7 +85,7 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
                 break
 
     #predictions = session.run(prediction, feed_dict={x: x_train, y: y_train}) 
-    final_sihl = best_clustering_evaluation(mo.transpose(session.run(W1 + b1)), id2node, G, True)
+    final_sihl = best_clustering_evaluation(mo.transpose(session.run(W1 + b1)), id2node, G, False)
     
     vectors = session.run(W1 + b1)
     logger.log("Training ended in " + str(iteration), " iterations, loss is " + str(loss) + ", sihlouette coefficient is " + str(final_sihl))
@@ -130,9 +132,32 @@ def cluster_evaluation(X, n_clusters, repetitions=5):
     sihl_coeff = metrics.silhouette_score(X, labels,metric='euclidean')
     
 
-    return sihl_coeff
+    return sihl_coeff, labels
 
 
+def best_clustering_evaluation(X, id2node=[], G=[], visualize_bool=False):
+    X = preprocessing.StandardScaler().fit_transform(X)
+    sihls_labels = [cluster_evaluation(X, n_clusters) for n_clusters in range(2,11)]
+    sihls = [x[0] for x in sihls_labels]
+    labels = [x[1] for x in sihls_labels]
+    best_sihl = max(sihls)
+    best_labels = labels[sihls.index(best_sihl)]
+        
+    if visualize_bool:
+        visualize(G, best_labels)
+    
+    return best_sihl
+
+
+
+def visualize(G, labels):
+    color_dict = {0:"r", 1:"b", 2:"gold", 3:"palegreen", 4:"m", 5:"darkgray", 6:"yellow", 7:"g", 8:"pink", 9:"black"}
+    colors = [color_dict[i] for i in labels]
+    plt.figure(3,figsize=(10,10)) 
+    nx.drawing.nx_pylab.draw_networkx(G, nx.spring_layout(G), node_color=colors)
+    plt.show()
+
+"""
 def best_clustering_evaluation(X, id2node=[], G=[], visualize_bool=False):
     X = preprocessing.StandardScaler().fit_transform(X)
     sihls = [cluster_evaluation(X, n_clusters) for n_clusters in range(2,11)]
@@ -146,10 +171,12 @@ def best_clustering_evaluation(X, id2node=[], G=[], visualize_bool=False):
             for l in range(len(labels)):
                 if labels[l]==i:
                     labels[l] = -1
+    best_n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
     if visualize_bool:
         show_only = [node for i, node in enumerate(G.nodes())]
-        visualize.visualizer.visualize_clusters([[id2node[i] for i in range(len(id2node)) if (show_only is None or id2node[i] in show_only) and labels[i]==cluster] for cluster in range(best_n_clusters)])
+        
     
     #logger.log('Estimated number of clusters: %d' % best_n_clusters_)
     
     return best_sihl
+"""

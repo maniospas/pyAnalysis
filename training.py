@@ -26,7 +26,6 @@ def train(G, pars, predictor=None):
             x_train = x_train/m
             node2id = {node: i for i,node in enumerate(G.nodes())}
             id2node = {node2id[node]: node for node in G.nodes()}
-            function_names = [node for i, node in enumerate(G.nodes())]
             for i in range(pars.iterations): 
                 logger.log("\nStarting iteration number", i+1, "out of", pars.iterations)
                 start_in = time.time()
