@@ -8,34 +8,33 @@ import numpy as np
 
 def export_results_to_csv(rec_results, rec_configs, train_results, train_configs, predictor, direct_on=False, rectangles=[], sorted_results=[]):    
         
-    y_plot_loss, y_plot_auc, y_plot_sihlouette = [abs(i) for i in rec_results[2]], [abs(i) for i in rec_results[1]], [abs(i) for i in rec_results[0]]
+    y_plot_loss, y_plot_sihlouette = [abs(i) for i in rec_results[1]], [abs(i) for i in rec_results[0]]
     x_plot = [i for i in range(len(y_plot_loss))]
     x_ticks_configs = [(j, [round(k,3) for k in i[0]], i[1]) for j,i in enumerate(rec_configs)]
           
-    create_rec_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y_plot_auc, y_plot_sihlouette, rectangles) 
+    create_rec_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y_plot_sihlouette, rectangles) 
     
-    y_plot_loss, y_plot_auc, y_plot_sihlouette = [abs(i) for i in train_results[2]], [abs(i) for i in train_results[1]], [abs(i) for i in train_results[0]]
+    y_plot_loss, y_plot_sihlouette = [abs(i) for i in train_results[1]], [abs(i) for i in train_results[0]]
     x_plot = [i for i in range(len(y_plot_loss))]
     x_ticks_configs = [(j, [round(k,3) for k in i[0]], i[1]) for j,i in enumerate(train_configs)]
     
     if predictor.predictor_on:
         training_added, training_added_plot, trainings_cancelled, acc_continuations, acc_cancellations = plots.compute_end_stats(predictor, False)
         y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors, y_plot_f_errors_perc  = [abs(i) for i in predictor.int_errors],  [abs(i) for i in predictor.int_errors_perc], [abs(i) for i in predictor.f_errors], [abs(i) for i in predictor.f_errors_perc]
-        create_train_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y_plot_auc, y_plot_sihlouette, y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors,
+        create_train_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y_plot_sihlouette, y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors,
                y_plot_f_errors_perc, training_added, trainings_cancelled, acc_continuations, acc_cancellations, rectangles) 
     else:
-        create_train_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y_plot_auc, y_plot_sihlouette)
+        create_train_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y_plot_sihlouette)
         
     create_optimal_path_csv(rectangles)
     
-    sorted_loss , sorted_auc, sorted_sihl = sorted_results[0], sorted_results[1], sorted_results[2]
+    sorted_loss, sorted_sihl = sorted_results[0], sorted_results[1]
     create_sorted_loss_csv(sorted_loss)
     create_sorted_sihl_csv(sorted_sihl)
-    create_sorted_auc_csv(sorted_auc)
 
 
     
-def create_rec_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y_plot_auc, y_plot_sihlouette, rectangles):
+def create_rec_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y_plot_sihlouette, rectangles):
     
     try:
         os.remove("plot_rec_data.csv")
@@ -44,9 +43,9 @@ def create_rec_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y
     
     csv_data = []    
 
-    csv_data.append(["rectangle number", "configurations", "loss", "AUC", "Sihlouette"])
-    for a,b,c,d,e in zip(x_plot, x_ticks_configs, y_plot_loss, y_plot_auc, y_plot_sihlouette):
-        csv_data.append([a, b, c, d, e])        
+    csv_data.append(["rectangle number", "configurations", "loss", "Sihlouette"])
+    for a,b,c,d in zip(x_plot, x_ticks_configs, y_plot_loss, y_plot_sihlouette):
+        csv_data.append([a, b, c, d])        
     with open('plot_rec_data.csv', 'w', newline='') as csvFile:
         writer = csv.writer(csvFile)
         writer.writerows(csv_data)
@@ -70,7 +69,7 @@ def create_rec_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y
         os.rename("plot_rec_data_dir.csv", "plot_rec_data.csv")
         
       
-def create_train_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y_plot_auc, y_plot_sihlouette, y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors,
+def create_train_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss, y_plot_sihlouette, y_plot_int_errors, y_plot_int_errors_perc, y_plot_f_errors,
                y_plot_f_errors_perc, training_added, trainings_cancelled, acc_continuations, acc_cancellations, rectangles):
     
     try:
@@ -80,9 +79,9 @@ def create_train_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss,
     
     csv_data = []    
 
-    csv_data.append(["exp. number", "configurations", "loss", "AUC", "Sihlouette"])
-    for a,b,c,d,e in zip(x_plot, x_ticks_configs, y_plot_loss, y_plot_auc, y_plot_sihlouette):
-        csv_data.append([a, b, c, d, e])
+    csv_data.append(["exp. number", "configurations", "loss", "Sihlouette"])
+    for a,b,c,d in zip(x_plot, x_ticks_configs, y_plot_loss, y_plot_sihlouette):
+        csv_data.append([a, b, c, d])
         
     with open('plot_train_data.csv', 'w', newline='') as csvFile:
         writer = csv.writer(csvFile)
@@ -129,17 +128,16 @@ def create_train_csv(predictor, direct_on, x_plot, x_ticks_configs, y_plot_loss,
         
         
 def create_optimal_path_csv(rectangles):
-    rec = rectangles[[x.loss for x in rectangles].index(min([x.loss for x in rectangles]))]
-    path_loss, path_auc, path_sihl, configs, iterations = [], [], [], [], []
+    rec = rectangles[[x.sihl for x in rectangles].index(max([y.sihl for y in rectangles]))]
+    path_loss, path_sihl, configs, iterations = [], [], [], []
     while True:
         path_loss.append(rec.loss)
-        path_auc.append(rec.auc)
-        path_loss.append(rec.loss)
+        path_sihl.append(rec.sihl)
         configs.append(rec.configs)
         iterations.append(rec.created_in_iteration)
         if rec.parent_index is np.nan: break
         rec = rectangles[rec.parent_index]        
-    path_loss, path_auc, path_sihl, configs, iterations = path_loss[::-1], path_auc[::-1], path_sihl[::-1], configs[::-1], iterations[::-1]       
+    path_loss, path_sihl, configs, iterations = path_loss[::-1], path_sihl[::-1], configs[::-1], iterations[::-1]       
 
     try:
         os.remove("optimal_path_data.csv")
@@ -148,9 +146,9 @@ def create_optimal_path_csv(rectangles):
     
     csv_data = []    
 
-    csv_data.append(["optimal path loss", "optimal path auc", "optimal path sihlouette", "optimal path configurations", "direct iteration"])
-    for a,b,c,d,e in zip(path_loss, path_auc, path_sihl, configs, iterations):
-        csv_data.append([a, b, c, d ,e])        
+    csv_data.append(["optimal path loss", "optimal path sihlouette", "optimal path configurations", "direct iteration"])
+    for a,b,c,d in zip(path_loss, path_sihl, configs, iterations):
+        csv_data.append([a, b, c, d])        
     with open('optimal_path_data.csv', 'w', newline='') as csvFile:
         writer = csv.writer(csvFile)
         writer.writerows(csv_data)
@@ -172,22 +170,7 @@ def create_sorted_loss_csv(sorted_loss):
         writer = csv.writer(csvFile)
         writer.writerows(csv_data)
     csvFile.close()        
-    
-def create_sorted_auc_csv(sorted_auc):
-    try:
-        os.remove("sorted_auc.csv")
-    except:
-        logger.log("no file 'sorted_auc' to delete")        
 
-    csv_data = []    
-
-    csv_data.append(["auc", "configuration"])
-    for a in sorted_auc:
-        csv_data.append([a[0], a[1]])        
-    with open('sorted_auc.csv', 'w', newline='') as csvFile:
-        writer = csv.writer(csvFile)
-        writer.writerows(csv_data)
-    csvFile.close()      
     
 def create_sorted_sihl_csv(sorted_sihl):
     try:

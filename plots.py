@@ -66,7 +66,7 @@ def plot_results(results, configs, rectangles, predictor):
     plot7.scatter(x_plot3, y_plot3, marker="+", c="yellow")
                 
     plot5 = plt.subplot(15 if predictor.predictor_on else 5, 1, 3)
-    y_plot = [abs(i) for i in results[2]]
+    y_plot = [abs(i) for i in results[1]]
     x_plot = [i for i in range(len(y_plot))]
     plot5.set_ylabel("loss")
     plot5.set_xlabel("experiment configuration")

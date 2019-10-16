@@ -7,10 +7,11 @@ import sklearn.metrics
 import math_operations as math_ops
 import time
 from sklearn.preprocessing import StandardScaler
+import copy
 
-ST_DEV_MUL = 1
+MUL = 1.5
 INT_PRED_LIM = 5
-COMPLETE_FIRST_TRAININGS = 20
+COMPLETE_FIRST_TRAININGS = 30
 AUC_NEG_SAMPLES_PERC = 2.5
 
 class Predictor:
@@ -31,7 +32,6 @@ class Predictor:
         self.acc_cancellations = []
         self.acc_continuations = []
         self.cvalidation_data = [[] for i in range(3)]
-        self.losses_std = []
         logger.log("Predictor initiated. Prediction model: SVR. Parameters:", self.params)
 
     
@@ -43,10 +43,13 @@ class Predictor:
     def predict_intermediate(self):        
         if self.predictor_on:
             if len(self.X_train) >= 1:
-                #scaler = StandardScaler()
-                return SVR(kernel=self.params[0], C=self.params[1], gamma=self.params[2]).fit(np.asarray(self.X_train), np.asarray(self.Y_train_int)).predict(np.asarray([self.losses]))    
+                scaler = StandardScaler()
+                x = copy.deepcopy(self.X_train)
+                x.append(self.losses)
+                x_scaled = scaler.fit_transform(x)
+                return SVR(kernel=self.params[0], C=self.params[1], gamma=self.params[2], epsilon=self.params[3]).fit(np.asarray(x_scaled[:-1]), np.asarray(self.Y_train_int)).predict(np.asarray([x_scaled[-1]]))    
             else:
-                return math.e #some big value
+                return math.e #some random value
         return None
 
     
@@ -57,19 +60,26 @@ class Predictor:
                 self.cvalidation_data[1].append(loss)
             self.int_errors.append(pred - loss)
             self.int_errors_perc.append((pred - loss)/loss*100)
-            if (abs(pred - loss)/loss)*100 > INT_PRED_LIM:
-                logger.log("intermediate prediction is inacurrate by", ((pred - loss)/loss)*100, "%")
+            if len(self.X_train) >= COMPLETE_FIRST_TRAININGS:
+                if (abs(pred - loss)/loss)*100 > INT_PRED_LIM:
+                    logger.log("intermediate prediction is inacurrate by", ((pred - loss)/loss)*100, "%")
+                    return False
+                else:
+                    logger.log("intermediate prediction is accurate enough. The difference is", ((pred - loss)/loss)*100, "%")
+                    return True
+            else: 
                 return False
-            else:
-                logger.log("intermediate prediction is accurate enough. The difference is", ((pred - loss)/loss)*100, "%")
-                return True
         return False
 
         
     def predict_final(self, predict_final_bool):        
         if self.predictor_on:
             if predict_final_bool:
-                return SVR(kernel=self.params[0], C=self.params[1], gamma=self.params[2]).fit(np.asarray(self.X_train), np.asarray(self.Y_train_f)).predict(np.asarray([self.losses]))    
+                scaler = StandardScaler()
+                x = copy.deepcopy(self.X_train)
+                x.append(self.losses)
+                x_scaled = scaler.fit_transform(x)
+                return SVR(kernel=self.params[0], C=self.params[1], gamma=self.params[2], epsilon=self.params[3]).fit(np.asarray(x_scaled[:-1]), np.asarray(self.Y_train_f)).predict(np.asarray([x_scaled[-1]]))    
             return None 
         return None
 
@@ -82,7 +92,7 @@ class Predictor:
                 if len(self.loss_list) > COMPLETE_FIRST_TRAININGS: logger.log("Prediction of final loss in iteration number " + str(iteration) + " is good. " + "Training continues...")
                 return training_continued()
             else:
-                logger.log("Prediction of final loss in iteration number", iteration, "is too high:", pred_final,". Training aborted...")
+                logger.log("Prediction of final sihlouette value in iteration number", iteration, "is too low:", pred_final,". Training aborted...")
                 if self.test_predictor_acc: return training_continued() # if we choose this mode, we want to check and compare the final prediction everytime, so that we have more comparisons
                 return training_aborted()
             
@@ -133,28 +143,27 @@ class Predictor:
     def loss_is_good(self, loss, print_res):
         if print_res:
             if self.loss_is_good(loss, False):
-                logger.log(loss, "<", min(self.loss_list), "+",  np.mean([abs(x) for x in self.int_errors[1:]]), "+", ST_DEV_MUL*np.std(self.int_errors[1:]), "=", min(self.loss_list) + np.mean([abs(x) for x in self.int_errors[2:]]) + ST_DEV_MUL*np.std(self.int_errors[2:]))
+                logger.log(loss, ">", max(self.loss_list), "-", np.std(self.loss_list), "-" , MUL*np.mean([abs(x) for x in self.int_errors[COMPLETE_FIRST_TRAININGS:]]), "-", MUL*np.std([abs(x) for x in self.int_errors[COMPLETE_FIRST_TRAININGS:]]), "=", max(self.loss_list) - np.std(self.loss_list) - MUL*np.mean([abs(x) for x in self.int_errors[COMPLETE_FIRST_TRAININGS-1:]]) - MUL*np.std([abs(x) for x in self.int_errors[COMPLETE_FIRST_TRAININGS:]]))
             else:
-                logger.log(loss, ">=", min(self.loss_list), "+",  np.mean([abs(x) for x in self.int_errors[1:]]), "+", ST_DEV_MUL*np.std(self.int_errors[1:]), "=", min(self.loss_list) + np.mean([abs(x) for x in self.int_errors[2:]]) + ST_DEV_MUL*np.std(self.int_errors[2:]))
-        return loss < min(self.loss_list) + np.mean([abs(x) for x in self.int_errors[1:]]) + ST_DEV_MUL*np.std(self.int_errors[1:])
+                logger.log(loss, "<", max(self.loss_list), "-", np.std(self.loss_list), "-" , MUL*np.mean([abs(x) for x in self.int_errors[COMPLETE_FIRST_TRAININGS:]]), "-", MUL*np.std(self.int_errors[COMPLETE_FIRST_TRAININGS:]), "=", max(self.loss_list) - np.std(self.loss_list) - MUL*np.mean([abs(x) for x in self.int_errors[COMPLETE_FIRST_TRAININGS-1:]]) - MUL*np.std([abs(x) for x in self.int_errors[COMPLETE_FIRST_TRAININGS:]]))
+        return loss > max(self.loss_list) - np.std(self.loss_list) - MUL*np.mean([abs(x) for x in self.int_errors[COMPLETE_FIRST_TRAININGS-1:]]) - MUL*np.std([abs(x) for x in self.int_errors[COMPLETE_FIRST_TRAININGS:]])
  
     
 class training_continued:
     def __init__(self):
         self.aborted = False
     
-    def return_metrics(self, loss, vectors, id2node, function_names, G):
-        sihlouette = topic.cluster(vectors, id2node, function_names)
+    def return_metrics(self, loss, vectors, id2node, predictor):
+        sihlouette = predictor.Y_train_f[-1]
         vectors = {id2node[u]: vectors[u] for u in range(len(vectors))}
-        auc = math_ops.LinkAUC(G).evaluate(vectors, 200)
-        return sihlouette, auc, loss           
+        return sihlouette, loss           
         
     
 class training_aborted:
     def __init__(self):
         self.aborted = True
 
-    def return_metrics(self, loss, vectors, id2node, function_names, G):
-        return -math.inf, -math.inf, loss
+    def return_metrics(self, loss, vectors, id2node, predictor):
+        return -math.inf, math.inf
 
 

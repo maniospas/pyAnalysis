@@ -20,12 +20,11 @@ class Rectangle:
         # the last dimension is not a filter parameter, its the embedding dimension. It follows logarithmic values
         self.diag = np.sqrt(sum([(self.centre[i]-self.axes[i][0])**2 for i in range(self.dims)]))
         self.iterations = train_iterations
-        self.pars = parameters.parameters(G, False, False, [], [], True, [self.centre], [32], self.iterations, 500)
+        self.pars = parameters.parameters(G, False, False, [], [], True, [self.centre], [32], self.iterations, 600)
         if middle_rec:
-            self.auc = inherited_rec.auc
             self.sihl = inherited_rec.sihl
+            self.rev_sihl = inherited_rec.rev_sihl
             self.loss = inherited_rec.loss
-            self.aucs = inherited_rec.aucs
             self.sihls = inherited_rec.sihls
             self.losses = inherited_rec.losses
             self.configs = inherited_rec.configs
@@ -38,12 +37,11 @@ class Rectangle:
             #self.train_diag_list = inherited_rec.train_diag_list
         else:
             results, configs, predictor = training.train(G, self.pars, predictor)
-            self.aucs = results[1] if self.iterations>1 else [results[1]]
             self.sihls = results[0] if self.iterations>1 else [results[0]]
-            self.losses = results[2] if self.iterations>1 else [results[2]]
-            self.auc = (sum([x for x in results[1] if x!= -math.inf])/len([x for x in results[1] if x!= -math.inf]) if len([x for x in results[1] if x!= -math.inf])!=0 else -math.inf) if self.iterations>1 else results[1]
+            self.losses = results[1] if self.iterations>1 else [results[1]]
             self.sihl = (sum([x for x in results[0] if x!= -math.inf])/len([x for x in results[0] if x!= -math.inf]) if len([x for x in results[0] if x!= -math.inf])!=0 else -math.inf) if self.iterations>1 else results[0]
-            self.loss = sum([x for x in results[2]])/len([x for x in results[2]]) if self.iterations>1 else results[2]
+            self.rev_sihl = 1-self.sihl
+            self.loss = (sum([x for x in results[1] if x!= math.inf])/len([x for x in results[1] if x!= math.inf]) if len([x for x in results[1] if x!= math.inf])!=0 else math.inf) if self.iterations>1 else results[1]
             self.configs = configs
             self.rec_size_list = [np.nan for x in range(1 + 2*counter)]
             self.rec_diag_list = [np.nan for x in range(1 + 2*counter)]
@@ -58,12 +56,12 @@ class Rectangle:
 def find_optimal_rectangles(rectangles, epsilon):    
     potentially_optimal_indexes, metrics = [], []
     for rectangle in rectangles:
-        metrics.append(rectangle.loss)
-    min_loss = min(metrics)
+        metrics.append(rectangle.rev_sihl)
+    min_metr = min(metrics)
     
     if len(rectangles) > 2:
         for r, rectangle in enumerate(rectangles):
-            if criterion(rectangle, rectangles, epsilon, min_loss): potentially_optimal_indexes.append(r)
+            if criterion(rectangle, rectangles, epsilon, min_metr): potentially_optimal_indexes.append(r)
     else: 
         for r in range(len(rectangles)): potentially_optimal_indexes.append(r)
         
@@ -82,18 +80,18 @@ def criterion(rec, rectangles, epsilon, min_f):
             rec_equal.append(r)
 
     for r in rec_equal:
-        if rec.loss > r.loss: flag = False
+        if rec.rev_sihl > r.rev_sihl: flag = False
         if flag == False: return flag
         
     a = math.inf
     b = 0   
     for r in rec_smaller:
-        if (rec.loss - r.loss)/(rec.diag - r.diag) > b: b = (rec.loss - r.loss)/(rec.diag-r.diag)
+        if (rec.rev_sihl - r.rev_sihl)/(rec.diag - r.diag) > b: b = (rec.rev_sihl - r.rev_sihl)/(rec.diag-r.diag)
     for r in rec_bigger:
-        if (r.loss - rec.loss)/(r.diag- rec.diag) < a: a = (r.loss - rec.loss)/(r.diag- rec.diag)
+        if (r.rev_sihl - rec.rev_sihl)/(r.diag- rec.diag) < a: a = (r.rev_sihl - rec.rev_sihl)/(r.diag- rec.diag)
         
     if a <= b: flag = False
-    if epsilon > (min_f - rec.loss)/abs(min_f) + rec.diag/abs(min_f)*a: flag = False
+    if epsilon > (min_f - rec.rev_sihl)/abs(min_f) + rec.diag/abs(min_f)*a: flag = False
     
     return flag
 
@@ -136,7 +134,7 @@ def renew_lists(rectangles, counter, indexes):
         
         
 def draw_rectangles(rectangles):
-    """    draws all the parameters compared to the 1st filter parameter. for ex. filter par 1-embed dim, filter par 1- filter par 2, filter par 1- filter par 3, filter par 1 - filter par 4"""
+    """    draws all the parameters compared to the 1st filter parameter. for ex. filter par 1- filter par 2, filter par 1- filter par 3, filter par 1 - filter par 4"""
     centres, array = [[] for i in range(len(rectangles))], [[[] for i in range(rectangles[0].dims)] for j in range(len(rectangles))]
     for r,rectangle in enumerate(rectangles):       
         for i in range(rectangle.dims):
@@ -165,8 +163,6 @@ def sort_rectangles(rectangles_original, metric):
     for rec in rectangles:
         if metric == "loss":
             metrics.append(rec.loss)
-        elif metric == "auc":
-            metrics.append(rec.auc)
         elif metric == "sihlouette":
             metrics.append(rec.sihl)
         configs.append(rec.configs)

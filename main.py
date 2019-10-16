@@ -7,27 +7,31 @@ import training
 import matplotlib.pyplot as plt
 import numpy as np
 import math
+import time
 
 
 
 
 
-G = graph_generation.create_predicate_graph("../keras")
+G = graph_generation.create_predicate_graph("../TheAlgorithms-master")
 #vis.visualize(G)
 
 pars = parameters.parameters(G)
 
 
-predictor = pred.Predictor(True, svr_params=['rbf', 1000, 1], test_predictor_acc=False)
+predictor = pred.Predictor(True, svr_params=['rbf', 1000, 1, 0.01], test_predictor_acc=False)
 
-rectangles, sorted_results, trisection_counter, predictor = main_ops.find_best_settings_direct(G=G, filter_dim=5, epsilon=10**(-4),
-                                               trisection_lim=1, train_iterations=1, predictor=predictor)
+start = time.time()
+#rectangles, sorted_results, trisection_counter, predictor = main_ops.find_best_settings_direct(G=G, filter_dim=5, epsilon=10**(-4),
+                                            #trisection_lim=50, train_iterations=3, predictor=predictor)
+end = time.time()
+print("\n\n\n time for everything:", end-start, "seconds, or", (end-start)/3600, "hours")
 
 
 #res = main_ops.cross_validate_svr()
  
-#pars = parameters.parameters(G, False, False, [], [], True, [[1.67, 0.5, 0.83, 0.5, 0.83]], [32], 1, 500)
-#res, conf, pred = training.train(G, pars, predictor)
+pars = parameters.parameters(G, False, False, [], [], True, [[0.94, 0.83, 0.16, 0.16, 0.5]], [32 for i in range(1)], 1, 600)
+res, conf, pred = training.train(G, pars, predictor)
 
 
 

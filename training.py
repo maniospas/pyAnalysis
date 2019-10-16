@@ -12,7 +12,7 @@ def train(G, pars, predictor=None):
     logger.log("Starting ", total_experiments, "experiments.\n") if total_experiments!=1 else logger.log("Starting ", total_experiments, "experiment.\n")
     logger.log("Embedding dimension is", pars.emb_dims[0])
     
-    results, configurations = np.zeros((3, len(pars.filters)*len(pars.emb_dims)*pars.iterations)), []
+    results, configurations = np.zeros((2, len(pars.filters)*len(pars.emb_dims)*pars.iterations)), []
     if pars.iterations <= 0:
         raise Exception("Iterations must be a positive number")
     total_counter = 0
@@ -30,10 +30,10 @@ def train(G, pars, predictor=None):
             for i in range(pars.iterations): 
                 logger.log("\nStarting iteration number", i+1, "out of", pars.iterations)
                 start_in = time.time()
-                vectors, loss, predictor, complete_training_bool = topic.encode(x_train, y_train, dim, pars.epochs, "Cross-Entropy", predictor)
+                vectors, loss, predictor, complete_training_bool = topic.encode(x_train, y_train, dim, pars.epochs, "Cross-Entropy", predictor, id2node, G)
                 end_in = time.time()
                 logger.log("Time it took to train:", end_in-start_in, "seconds")              
-                results[0][total_counter], results[1][total_counter], results[2][total_counter] =  complete_training_bool.return_metrics(loss, vectors, id2node, function_names, G)
+                results[0][total_counter], results[1][total_counter] =  complete_training_bool.return_metrics(loss, vectors, id2node, predictor)
                 configurations.append((filt, dim))
                 total_counter += 1            
     end_out = time.time()  

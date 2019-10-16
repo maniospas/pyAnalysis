@@ -3,12 +3,18 @@ import math
 from predictor import Predictor
 import logger
 import tqdm
+from sklearn.cluster import KMeans
+from sklearn import metrics
+from sklearn import preprocessing
+import math_operations as mo
+import visualize
 
-CONVERGENCE_STOP_PERC = 0
+
+CONVERGENCE_STOP_PERC = 0.1
 RANDOM_NORMAL_STDDEV = 0.1
-LEARNING_RATE = 0.000001
+LEARNING_RATE = 0.00001
 
-def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", predictor=Predictor(False)):
+def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", predictor=Predictor(False), id2node=[], G=np.nan):
     dim = x_train.shape[0]
     import tensorflow as tf
     # TENSORFLOW MODEL
@@ -47,51 +53,46 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
 
     predictor.clear_losses()         
     prev_loss = 1
-    change_percentage = []
-    #sigmoid_entry_before = session.run(tf.add( tf.matmul(hidden_representation, W2), b2), feed_dict={x: x_train, y: y_train})
+    #change_percentage = []
+    #sihls = []
+    #first_sihl = []
+    #first_sihl.append(best_clustering_evaluation(mo.transpose(session.run(W1 + b1))))
+    #vecs=[]
     for iteration in tqdm.tqdm(range(epochs), desc="Training embeddings", position=0, leave=True):
         session.run(train_step, feed_dict={x: x_train, y: y_train})
         loss = session.run(loss_function, feed_dict={x: x_train, y: y_train})
-        #if iteration%100==0: 
-            #logger.log("iteration:", iteration, "loss:", loss)
-            #logger.log("prediction:", session.run(prediction, feed_dict={x: x_train, y: y_train}))
-        #logger.log("vectors:", session.run(W1+b1))        
-        #logger.log("y:", session.run(y, feed_dict={x: x_train, y: y_train}))
-        #logger.log("prediction:", session.run(prediction, feed_dict={x: x_train, y: y_train}))
-        #pr = session.run(prediction, feed_dict={x: x_train, y: y_train})   
-        #sigmoid_entry = session.run(tf.add( tf.matmul(hidden_representation, W2), b2), feed_dict={x: x_train, y: y_train})
-        change_percentage.append((loss-prev_loss)*100/prev_loss)
+        #change_percentage.append((loss-prev_loss)*100/prev_loss)
+        #if iteration%50==0:
+            #sihls.append(best_clustering_evaluation(mo.transpose(session.run(W1 + b1))))
+            #vecs.append(session.run(W1 + b1))
         if math.isnan(loss):
             raise Exception("Loss was None")
         if iteration < epochs//10:
-            if iteration%10==0: predictor.register_loss(loss)
+            if iteration%10==0: predictor.register_loss(best_clustering_evaluation(mo.transpose(session.run(W1 + b1))))
         else:
-            if abs(loss-prev_loss)*100/prev_loss<CONVERGENCE_STOP_PERC: break
+            if abs(loss-prev_loss)*100/prev_loss<CONVERGENCE_STOP_PERC and iteration>epochs//2: break
         prev_loss = loss
         if iteration == epochs//10:
             int_pred = predictor.predict_intermediate()
-            predict_final_bool = predictor.attempt_final_prediction_bool(int_pred, loss)
+            int_sihl = best_clustering_evaluation(mo.transpose(session.run(W1 + b1)))
+            predict_final_bool = predictor.attempt_final_prediction_bool(int_pred, int_sihl)
             final_pred = predictor.predict_final(predict_final_bool)
             training_completed_bool = predictor.complete_training_bool(final_pred, iteration)
-            predictor.add_train_data(training_completed_bool, "intermediate", loss)
+            predictor.add_train_data(training_completed_bool, "intermediate", int_sihl)
             if training_completed_bool.aborted:
                 break
-            
-    #logger.log("prediction:", session.run(prediction, feed_dict={x: x_train, y: y_train}))            
-    #logger.log("W1:", session.run(W1, feed_dict={x: x_train, y: y_train}))
-    #logger.log("B1:", session.run(b1, feed_dict={x: x_train, y: y_train}))
-    #logger.log("W2:", session.run(W2, feed_dict={x: x_train, y: y_train}))
-    #logger.log("B2:", session.run(b2, feed_dict={x: x_train, y: y_train}))
 
-        
-    vectors = session.run(W1 + b1)
-    logger.log("Training ended in ", iteration, "iterations, loss is ", loss)
+    #predictions = session.run(prediction, feed_dict={x: x_train, y: y_train}) 
+    final_sihl = best_clustering_evaluation(mo.transpose(session.run(W1 + b1)), id2node, G, True)
     
-    predictor.collect_results(final_pred, loss, training_completed_bool)
-    predictor.add_train_data(training_completed_bool, "final", loss)    
+    vectors = session.run(W1 + b1)
+    logger.log("Training ended in " + str(iteration), " iterations, loss is " + str(loss) + ", sihlouette coefficient is " + str(final_sihl))
+    
+    predictor.collect_results(final_pred, final_sihl, training_completed_bool)
+    predictor.add_train_data(training_completed_bool, "final", final_sihl)    
     
     if not training_completed_bool.aborted: return vectors, loss, predictor, training_completed_bool
-    return vectors,final_pred, predictor, training_completed_bool
+    return vectors, final_pred, predictor, training_completed_bool
 
     
 def one_hot(index, size):
@@ -122,11 +123,21 @@ def similarity(v1, v2):
     return sum(v1[i]*v2[i] for i in range(len(v1)))#/np.sqrt(sum(v1[i]*v1[i] for i in range(len(v1))))/np.sqrt(sum(v2[i]*v2[i] for i in range(len(v1))))
 
 
-def cluster(X, id2words, show_only):
-    from sklearn.cluster import KMeans
-    from sklearn import metrics
-    from sklearn import preprocessing
+def cluster_evaluation(X, n_clusters, repetitions=5):
+    clusters=KMeans(n_clusters=n_clusters)
+    clusters.fit(X)
+    labels = clusters.labels_
+    sihl_coeff = metrics.silhouette_score(X, labels,metric='euclidean')
+    
+
+    return sihl_coeff
+
+
+def best_clustering_evaluation(X, id2node=[], G=[], visualize_bool=False):
     X = preprocessing.StandardScaler().fit_transform(X)
+    sihls = [cluster_evaluation(X, n_clusters) for n_clusters in range(2,11)]
+    best_sihl = max(sihls)    
+    best_n_clusters = sihls.index(best_sihl)+2
     
     db = KMeans().fit(X)
     labels = db.labels_
@@ -135,14 +146,10 @@ def cluster(X, id2words, show_only):
             for l in range(len(labels)):
                 if labels[l]==i:
                     labels[l] = -1
+    if visualize_bool:
+        show_only = [node for i, node in enumerate(G.nodes())]
+        visualize.visualizer.visualize_clusters([[id2node[i] for i in range(len(id2node)) if (show_only is None or id2node[i] in show_only) and labels[i]==cluster] for cluster in range(best_n_clusters)])
     
-    n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+    #logger.log('Estimated number of clusters: %d' % best_n_clusters_)
     
-    #import visualize.visualizer
-    #visualize.visualizer.visualize_clusters([[id2words[i] for i in range(len(id2words)) if (show_only is None or id2words[i] in show_only) and labels[i]==cluster] for cluster in range(n_clusters_)])
-
-    
-    #logger.log('Estimated number of clusters: %d' % n_clusters_)
-    #logger.log("Silhouette Coefficient: %0.3f"  % metrics.silhouette_score(X, labels))
-    
-    return metrics.silhouette_score(X, labels)
+    return best_sihl

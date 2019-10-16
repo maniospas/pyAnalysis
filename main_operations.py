@@ -11,28 +11,6 @@ import math
 import time
 
 
-def find_best_settings(G, pars, predictor):       
-    results, configs, predictor = training.train(G, pars, predictor)
-    plots.plot_results(results, configs, predictor)
-    results_to_csv.export_results_to_csv("loss", results, configs, predictor, False, [])
-    max_auc, max_sihl, min_loss = np.amax(results[0]), np.amax(results[1]), np.amin(results[2])
-    from numpy import unravel_index
-    max_auc_index = unravel_index(results[0].argmax(), results[0].shape)
-    max_sihl_index = unravel_index(results[1].argmax(), results[1].shape)
-    min_loss_index = unravel_index(results[2].argmin(), results[2].shape)
-    
-    logger.log("The best AUC result was", max_auc,"and was found when using the following filter", configs[max_auc_index[0]][0],
-           "and with embedding dimensions", configs[max_auc_index[0]][1], ". The Sihlouette result at these settings was",
-           results[1][max_auc_index[0]], "and the Loss was", results[2][max_auc_index[0]] , ".\n\n")
-    logger.log("The best Sihlouette result was", max_sihl ," and was found when using the following filter", configs[max_sihl_index[0]][0],
-          "and with embedding dimensions", configs[max_sihl_index[0]][1], ". The AUC result at these settings was", results[0][max_sihl_index[0]],
-          "and the Loss was", results[2][max_sihl_index[0]], ".\n\n")
-    logger.log("The best Loss result was", min_loss ," and was found when using the following filter", configs[min_loss_index[0]][0], 
-          "and with embedding dimensions", configs[min_loss_index[0]][1], ". The AUC result at these settings was", results[0][min_loss_index[0]],
-          "and the Sihlouette was", results[1][min_loss_index[0]], ".\n\n")  
-           
-    return results[0], results[1], results[2], configs, max_auc_index, max_sihl_index, min_loss_index, predictor
-
 
 def find_best_settings_direct(G, filter_dim, epsilon, trisection_lim, train_iterations, predictor):  
     if filter_dim < 1: raise Exception("The filter dimensions cannot be less than 1!")
@@ -62,7 +40,7 @@ def find_best_settings_direct(G, filter_dim, epsilon, trisection_lim, train_iter
     fig2 = plots.plot_results(train_results, train_configs, rectangles, predictor)
     plt.show
     
-    sorted_results = [direct.sort_rectangles(rectangles, "loss"), direct.sort_rectangles(rectangles, "auc"), direct.sort_rectangles(rectangles, "sihlouette")] 
+    sorted_results = [direct.sort_rectangles(rectangles, "loss"), direct.sort_rectangles(rectangles, "sihlouette")] 
     
     if predictor.test_predictor_acc: results_to_csv.cvalidation_data_to_csv(predictor.cvalidation_data)
     results_to_csv.export_results_to_csv(rec_results, rec_configs, train_results, train_configs, predictor, True, rectangles, sorted_results)
@@ -105,17 +83,15 @@ def cross_validate_svr():
 
     
 def list_results(rectangles):
-    rec_loss, rec_sihl, rec_auc, rec_configs, train_loss, train_sihl, train_auc, train_configs = [], [], [], [], [], [], [], []
+    rec_loss, rec_sihl, rec_configs, train_loss, train_sihl, train_configs = [], [], [], [], [], []
     for rec in rectangles:
         train_loss.extend(rec.losses)
         train_sihl.extend(rec.sihls)
-        train_auc.extend(rec.aucs)
         train_configs.extend([rec.configs[0] for x in range(rec.iterations)])
         rec_loss.append(rec.loss)
         rec_sihl.append(rec.sihl)
-        rec_auc.append(rec.auc)
         rec_configs.append(rec.configs[0])
-    return [(rec_sihl), (rec_auc), (rec_loss)], rec_configs, [(train_sihl), (train_auc), (train_loss)], train_configs
+    return [(rec_sihl), (rec_loss)], rec_configs, [(train_sihl), (train_loss)], train_configs
 
                 
     
