@@ -20,7 +20,7 @@ class Rectangle:
         # the last dimension is not a filter parameter, its the embedding dimension. It follows logarithmic values
         self.diag = np.sqrt(sum([(self.centre[i]-self.axes[i][0])**2 for i in range(self.dims)]))
         self.iterations = train_iterations
-        self.pars = parameters.parameters(G, False, False, [], [], True, [self.centre], [32], self.iterations, 600)
+        self.pars = parameters.parameters(G, False, False, [], [], True, [self.centre], [32], self.iterations, 2000)
         if middle_rec:
             self.sihl = inherited_rec.sihl
             self.rev_sihl = inherited_rec.rev_sihl

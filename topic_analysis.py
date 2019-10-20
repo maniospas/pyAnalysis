@@ -12,9 +12,9 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 
-CONVERGENCE_STOP_PERC = 0.1
+CONVERGENCE_STOP_PERC = 0.0015
 RANDOM_NORMAL_STDDEV = 0.1
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.00004
 
 def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", predictor=Predictor(False), id2node=[], G=np.nan):
     dim = x_train.shape[0]
@@ -60,7 +60,7 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
     #first_sihl = []
     #first_sihl.append(best_clustering_evaluation(mo.transpose(session.run(W1 + b1))))
     #vecs=[]
-    for iteration in tqdm.tqdm(range(epochs), desc="Training embeddings", position=0, leave=True):
+    for iteration in tqdm.tqdm(range(epochs), desc="Training embeddings", position=0, leave=False):
         session.run(train_step, feed_dict={x: x_train, y: y_train})
         loss = session.run(loss_function, feed_dict={x: x_train, y: y_train})
         #change_percentage.append((loss-prev_loss)*100/prev_loss)
@@ -70,7 +70,7 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
         if math.isnan(loss):
             raise Exception("Loss was None")
         if iteration < epochs//10:
-            if iteration%10==0: predictor.register_loss(best_clustering_evaluation(mo.transpose(session.run(W1 + b1))))
+            if iteration%30==0: predictor.register_loss(best_clustering_evaluation(mo.transpose(session.run(W1 + b1))))
         else:
             if abs(loss-prev_loss)*100/prev_loss<CONVERGENCE_STOP_PERC and iteration>epochs//2: break
         prev_loss = loss
@@ -155,28 +155,10 @@ def visualize(G, labels):
     colors = [color_dict[i] for i in labels]
     plt.figure(3,figsize=(10,10)) 
     nx.drawing.nx_pylab.draw_networkx(G, nx.spring_layout(G), node_color=colors)
+    plt.xticks(np.arange(1), (" ")) 
+    plt.yticks(np.arange(1), (" ")) 
     plt.show()
 
-"""
-def best_clustering_evaluation(X, id2node=[], G=[], visualize_bool=False):
-    X = preprocessing.StandardScaler().fit_transform(X)
-    sihls = [cluster_evaluation(X, n_clusters) for n_clusters in range(2,11)]
-    best_sihl = max(sihls)    
-    best_n_clusters = sihls.index(best_sihl)+2
-    
-    db = KMeans().fit(X)
-    labels = db.labels_
-    for i in range(max(labels)):
-        if list(labels).count(i)<=2:
-            for l in range(len(labels)):
-                if labels[l]==i:
-                    labels[l] = -1
-    best_n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
-    if visualize_bool:
-        show_only = [node for i, node in enumerate(G.nodes())]
-        
-    
-    #logger.log('Estimated number of clusters: %d' % best_n_clusters_)
-    
-    return best_sihl
-"""
+
+
+
