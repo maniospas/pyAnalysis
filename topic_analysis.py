@@ -10,15 +10,15 @@ import math_operations as mo
 import pandas as pd
 import networkx as nx
 import matplotlib.pyplot as plt
+import tensorflow as tf
 
 
-CONVERGENCE_STOP_PERC = 0.0015
+CONVERGENCE_STOP_PERC = 0.4
 RANDOM_NORMAL_STDDEV = 0.1
-LEARNING_RATE = 0.00004
+LEARNING_RATE = 0.000001
 
 def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", predictor=Predictor(False), id2node=[], G=np.nan):
     dim = x_train.shape[0]
-    import tensorflow as tf
     # TENSORFLOW MODEL
     x = tf.placeholder(tf.float32, shape=(None, dim))
     W1 = tf.cast(tf.Variable(tf.random_normal([dim, EMBEDDING_DIM], mean=0, stddev=RANDOM_NORMAL_STDDEV)), tf.float32)
@@ -55,7 +55,7 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
 
     predictor.clear_losses()         
     prev_loss = 1
-    #change_percentage = []
+    change_percentage = []
     #sihls = []
     #first_sihl = []
     #first_sihl.append(best_clustering_evaluation(mo.transpose(session.run(W1 + b1))))
@@ -63,14 +63,14 @@ def encode(x_train, y_train, EMBEDDING_DIM=10, epochs = 5000, loss="Square", pre
     for iteration in tqdm.tqdm(range(epochs), desc="Training embeddings", position=0, leave=False):
         session.run(train_step, feed_dict={x: x_train, y: y_train})
         loss = session.run(loss_function, feed_dict={x: x_train, y: y_train})
-        #change_percentage.append((loss-prev_loss)*100/prev_loss)
+        change_percentage.append((loss-prev_loss)*100/prev_loss)
         #if iteration%50==0:
             #sihls.append(best_clustering_evaluation(mo.transpose(session.run(W1 + b1))))
             #vecs.append(session.run(W1 + b1))
         if math.isnan(loss):
             raise Exception("Loss was None")
         if iteration < epochs//10:
-            if iteration%30==0: predictor.register_loss(best_clustering_evaluation(mo.transpose(session.run(W1 + b1))))
+            if iteration%10==0: predictor.register_loss(best_clustering_evaluation(mo.transpose(session.run(W1 + b1))))
         else:
             if abs(loss-prev_loss)*100/prev_loss<CONVERGENCE_STOP_PERC and iteration>epochs//2: break
         prev_loss = loss
@@ -156,7 +156,7 @@ def visualize(G, labels):
     plt.figure(3,figsize=(10,10)) 
     nx.drawing.nx_pylab.draw_networkx(G, nx.spring_layout(G), node_color=colors)
     plt.xticks(np.arange(1), (" ")) 
-    plt.yticks(np.arange(1), (" ")) 
+    plt.yticks(np.arange(1), (" "))    
     plt.show()
 
 
